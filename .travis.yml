@@ -1,0 +1,20 @@
+---
+language: ruby
+
+rvm:
+  - ruby-head
+  - 2.3.0
+  - 2.2.4
+  - 2.1
+
+before_install:
+  - git clone https://github.com/rake-compiler/rake-compiler.git
+  - cd rake-compiler && bundle install && bundle exec rake gem && gem install pkg/rake-compiler-0.9.8.gem
+  - rm -rf rake-compiler
+
+install:
+  - bundle install
+
+script:
+  - bundle exec rake clobber compile
+  - bundle exec rake spec
