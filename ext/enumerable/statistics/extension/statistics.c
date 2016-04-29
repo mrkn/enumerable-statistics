@@ -1,26 +1,28 @@
 #include <ruby/ruby.h>
 #include <ruby/version.h>
+#include <assert.h>
 
 #if RUBY_API_VERSION_CODE >= 20400
 /* for 2.4.0 or higher */
 # define HAVE_ARRAY_SUM
-# define HAVE_RB_FIX_PLUS
-# define HAVE_RB_RATIONAL_PLUS
-VALUE rb_fix_plus(VALUE x, VALUE y);
-VALUE rb_rational_plus(VALUE self, VALUE other);
+# undef HAVE_RB_FIX_PLUS
+# undef HAVE_RB_RATIONAL_PLUS
 #elif RUBY_API_VERSION_CODE >= 20200
 /* for 2.3.0 and 2.2.0 */
 # undef HAVE_ARRAY_SUM
 # undef HAVE_RB_FIX_PLUS
 # undef HAVE_RB_RATIONAL_PLUS
-static VALUE rb_fix_plus(VALUE x, VALUE y);
-static VALUE rb_rational_plus(VALUE self, VALUE other);
+#endif
 
+#ifndef HAVE_TYPE_STRUCT_RRATIONAL
 struct RRational {
     struct RBasic basic;
     const VALUE num;
     const VALUE den;
 };
+#endif
+
+#ifndef RRATIONAL
 # define RRATIONAL(obj) (R_CAST(RRational)(obj))
 #endif
 
@@ -30,6 +32,26 @@ struct RRational {
 
 #ifndef RRATIONAL_SET_DEN
 # define RRATIONAL_SET_DEN(rat, d) RB_OBJ_WRITE((rat), &((struct RRational *)(rat))->den,(d))
+#endif
+
+#ifndef HAVE_TYPE_STRUCT_RCOMPLEX
+struct RComplex {
+    struct RBasic basic;
+    const VALUE real;
+    const VALUE imag;
+};
+#endif
+
+#ifndef RCOMPLEX
+# define RCOMPLEX(obj) (R_CAST(RComplex)(obj))
+#endif
+
+#ifndef RCOMPLEX_SET_REAL
+# define RCOMPLEX_SET_REAL(cmp, r) RB_OBJ_WRITE((cmp), &((struct RComplex *)(cmp))->real,(r))
+#endif
+
+#ifndef RCOMPLEX_SET_IMAG
+# define RCOMPLEX_SET_IMAG(cmp, i) RB_OBJ_WRITE((cmp), &((struct RComplex *)(cmp))->imag,(i))
 #endif
 
 #ifndef MUL_OVERFLOW_SIGNED_INTEGER_P
@@ -46,9 +68,95 @@ struct RRational {
 #endif
 
 static ID idPow, idPLUS, idMINUS, idSTAR, id_eqeq_p, id_idiv, id_negate, id_to_f, id_cmp;
+static ID id_each, id_real_p;
+
+inline static VALUE
+f_add(VALUE x, VALUE y)
+{
+  if (FIXNUM_P(y) && FIX2LONG(y) == 0)
+    return x;
+  else if (FIXNUM_P(x) && FIX2LONG(x) == 0)
+    return y;
+  return rb_funcall(x, idPLUS, 1, y);
+}
+
+inline static VALUE
+f_sub(VALUE x, VALUE y)
+{
+  if (FIXNUM_P(y) && FIX2LONG(y) == 0)
+    return x;
+  return rb_funcall(x, idMINUS, 1, y);
+}
+
+inline static VALUE
+f_real_p(VALUE x)
+{
+  if (FIXNUM_P(x) || RB_TYPE_P(x, T_BIGNUM) || RB_TYPE_P(x, T_RATIONAL) || RB_FLOAT_TYPE_P(x))
+    return Qtrue;
+  else if (RB_TYPE_P(x, T_COMPLEX))
+    return Qfalse;
+  else
+    return rb_funcall(x, id_real_p, 0);
+}
 
 #ifndef HAVE_RB_FIX_PLUS
-VALUE
+static VALUE
+complex_new(VALUE klass, VALUE real, VALUE imag)
+{
+  assert(!RB_TYPE_P(real, T_COMPLEX));
+
+  NEWOBJ_OF(obj, struct RComplex, klass, T_COMPLEX | (RGENGC_WB_PROTECTED_COMPLEX ? FL_WB_PROTECTED : 0));
+
+  RCOMPLEX_SET_REAL(obj, real);
+  RCOMPLEX_SET_IMAG(obj, imag);
+
+  return (VALUE)obj;
+}
+
+static VALUE
+complex_caonicalize_new(VALUE klass, VALUE real, VALUE imag)
+{
+  if (f_real_p(real) && f_real_p(imag))
+    return complex_new(klass, real, imag);
+  else if (f_real_p(imag)) {
+    VALUE new_imag;
+
+    new_imag = f_add(RCOMPLEX(real)->imag, imag);
+
+    return complex_new(klass, RCOMPLEX(real)->real, new_imag);
+  }
+  else {
+    VALUE new_real, new_imag;
+
+    new_real = f_sub(RCOMPLEX(real)->real, RCOMPLEX(imag)->imag);
+    new_imag = f_add(RCOMPLEX(real)->imag, RCOMPLEX(imag)->real);
+
+    return complex_new(klass, new_real, new_imag);
+  }
+}
+
+static VALUE
+complex_add(VALUE self, VALUE other)
+{
+  if (RB_TYPE_P(other, T_COMPLEX)) {
+    VALUE real, imag;
+
+    real = f_add(RCOMPLEX(self)->real, RCOMPLEX(other)->real);
+    imag = f_add(RCOMPLEX(self)->imag, RCOMPLEX(other)->imag);
+
+    return complex_new(CLASS_OF(self), real, imag);
+  }
+  else if (rb_obj_is_kind_of(other, rb_cNumeric) && RTEST(f_real_p(other))) {
+    VALUE real;
+
+    real = f_add(RCOMPLEX(self)->real, other);
+
+    return complex_new(CLASS_OF(self), real, RCOMPLEX(other)->imag);
+  }
+  return rb_num_coerce_bin(self, other, idPLUS);
+}
+
+static VALUE
 rb_fix_plus(VALUE x, VALUE y)
 {
   if (FIXNUM_P(y)) {
@@ -69,8 +177,7 @@ rb_fix_plus(VALUE x, VALUE y)
     return DBL2NUM((double)FIX2LONG(x) + RFLOAT_VALUE(y));
   }
   else if (RB_TYPE_P(y, T_COMPLEX)) {
-    VALUE rb_nucomp_add(VALUE, VALUE);
-    return rb_nucomp_add(y, x);
+    return complex_add(y, x);
   }
   else {
     return rb_num_coerce_bin(x, y, '+');
@@ -156,24 +263,6 @@ i_gcd(long x, long y)
     y = t;
   }
   return y;
-}
-
-inline static VALUE
-f_add(VALUE x, VALUE y)
-{
-  if (FIXNUM_P(y) && FIX2LONG(y) == 0)
-    return x;
-  else if (FIXNUM_P(x) && FIX2LONG(x) == 0)
-    return y;
-  return rb_funcall(x, idPLUS, 1, y);
-}
-
-inline static VALUE
-f_sub(VALUE x, VALUE y)
-{
-  if (FIXNUM_P(y) && FIX2LONG(y) == 0)
-    return x;
-  return rb_funcall(x, idMINUS, 1, y);
 }
 
 inline static VALUE
@@ -471,10 +560,139 @@ not_exact:
 }
 #endif
 
+#define ENUM_WANT_SVALUE() do { \
+  e = rb_enum_values_pack(argc, argv); \
+} while (0)
+
+struct enum_sum_memo {
+  VALUE v, r;
+  long n;
+  double f, c;
+  int block_given;
+  int float_value;
+};
+
+static VALUE
+enum_sum_iter_i(RB_BLOCK_CALL_FUNC_ARGLIST(e, args))
+{
+  struct enum_sum_memo *memo = (struct enum_sum_memo *)args;
+  long n = memo->n;
+  VALUE v = memo->v;
+  VALUE r = memo->r;
+  double f = memo->f;
+  double c = memo->c;
+
+  ENUM_WANT_SVALUE();
+
+  if (memo->block_given)
+    e = rb_yield(e);
+
+  if (memo->float_value)
+    goto float_value;
+
+  if (FIXNUM_P(v) || RB_TYPE_P(v, T_BIGNUM) || RB_TYPE_P(v, T_RATIONAL)) {
+    if (FIXNUM_P(e)) {
+      n += FIX2LONG(e); /* should not overflow long type */
+      if (!FIXABLE(n)) {
+        v = rb_big_plus(LONG2NUM(n), v);
+        n = 0;
+      }
+    }
+    else if (RB_TYPE_P(e, T_BIGNUM))
+      v = rb_big_plus(e, v);
+    else if (RB_TYPE_P(e, T_RATIONAL)) {
+      if (r == Qundef)
+        r = e;
+      else
+        r = rb_rational_plus(r, e);
+    }
+    else {
+      if (n != 0) {
+        v = rb_fix_plus(LONG2FIX(n), v);
+        n = 0;
+      }
+      if (r != Qundef) {
+        v = rb_rational_plus(r, v);
+        r = Qundef;
+      }
+      if (RB_FLOAT_TYPE_P(e)) {
+        f = NUM2DBL(v);
+        c = 0.0;
+        memo->float_value = 1;
+        goto float_value;
+      }
+      else
+        goto some_value;
+    }
+  }
+  else if (RB_FLOAT_TYPE_P(v)) {
+    /* Kahan's compensated summation algorithm */
+    double x, y, t;
+
+  float_value:
+    if (RB_FLOAT_TYPE_P(e))
+      x = RFLOAT_VALUE(e);
+    else if (FIXNUM_P(e))
+      x = FIX2LONG(e);
+    else if (RB_TYPE_P(e, T_BIGNUM))
+      x = rb_big2dbl(e);
+    else if (RB_TYPE_P(e, T_RATIONAL))
+      x = rb_num2dbl(e);
+    else {
+      v = DBL2NUM(f);
+      memo->float_value = 0;
+      goto some_value;
+    }
+
+    y = x - c;
+    t = f + y;
+    c = (t - f) - y;
+    f = t;
+  }
+  else {
+  some_value:
+    v = rb_funcall(v, idPLUS, 1, e);
+  }
+
+  memo->v = v;
+  memo->n = n;
+  memo->r = r;
+  memo->f = f;
+  memo->c = c;
+
+  return Qnil;
+}
+
 static VALUE
 enum_stat_sum(int argc, VALUE* argv, VALUE obj)
 {
-  return INT2FIX(0);
+  struct enum_sum_memo memo;
+
+  if (rb_scan_args(argc, argv, "01", &memo.v) == 0)
+    memo.v = LONG2FIX(0);
+
+  memo.block_given = rb_block_given_p();
+
+  memo.n = 0;
+  memo.r = Qundef;
+
+  if ((memo.float_value = RB_FLOAT_TYPE_P(memo.v))) {
+    memo.f = RFLOAT_VALUE(memo.v);
+    memo.c = 0.0;
+  }
+
+  rb_block_call(obj, id_each, 0, 0, enum_sum_iter_i, (VALUE)&memo);
+
+  if (memo.float_value) {
+    return DBL2NUM(memo.f);
+  }
+  else {
+    if (memo.n != 0)
+      memo.v = rb_fix_plus(LONG2FIX(memo.n), memo.v);
+    if (memo.r != Qundef)
+      memo.v = rb_rational_plus(memo.r, memo.v);
+    return memo.v;
+  }
 }
 
 static VALUE
@@ -539,4 +757,6 @@ Init_extension(void)
   id_negate = rb_intern("-@");
   id_to_f = rb_intern("to_f");
   id_cmp = rb_intern("<=>");
+  id_each = rb_intern("each");
+  id_real_p = rb_intern("real?");
 }
