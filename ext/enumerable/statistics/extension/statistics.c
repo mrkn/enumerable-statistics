@@ -45,7 +45,6 @@ struct RRational {
 # define MUL_OVERFLOW_LONG_P(a, b) MUL_OVERFLOW_SIGNED_INTEGER_P(a, b, LONG_MIN, LONG_MAX)
 #endif
 
-static VALUE mStatistics;
 static ID idPow, idPLUS, idMINUS, idSTAR, id_eqeq_p, id_idiv, id_negate, id_to_f, id_cmp;
 
 #ifndef HAVE_RB_FIX_PLUS
@@ -518,18 +517,14 @@ enum_stat_stddev(VALUE obj)
 void
 Init_extension(void)
 {
-  mStatistics = rb_define_module_under(rb_mEnumerable, "Statistics");
-  rb_define_method(mStatistics, "sum", enum_stat_sum, -1);
-  rb_define_method(mStatistics, "mean_variance", enum_stat_mean_variance, 0);
-  rb_define_method(mStatistics, "mean", enum_stat_mean, 0);
-  rb_define_alias(mStatistics, "average", "mean");
-  rb_define_method(mStatistics, "variance", enum_stat_variance, 0);
-  rb_define_alias(mStatistics, "var", "variance");
-  rb_define_method(mStatistics, "mean_stddev", enum_stat_mean_stddev, 0);
-  rb_define_method(mStatistics, "stddev", enum_stat_stddev, 0);
-
-  rb_include_module(rb_mEnumerable, mStatistics);
-  rb_include_module(rb_cArray, mStatistics);
+  rb_define_method(rb_mEnumerable, "sum", enum_stat_sum, -1);
+  rb_define_method(rb_mEnumerable, "mean_variance", enum_stat_mean_variance, 0);
+  rb_define_method(rb_mEnumerable, "mean", enum_stat_mean, 0);
+  rb_define_alias(rb_mEnumerable, "average", "mean");
+  rb_define_method(rb_mEnumerable, "variance", enum_stat_variance, 0);
+  rb_define_alias(rb_mEnumerable, "var", "variance");
+  rb_define_method(rb_mEnumerable, "mean_stddev", enum_stat_mean_stddev, 0);
+  rb_define_method(rb_mEnumerable, "stddev", enum_stat_stddev, 0);
 
 #ifndef HAVE_ARRAY_SUM
   rb_define_method(rb_cArray, "sum", ary_sum, -1);
