@@ -4,54 +4,6 @@ require 'delegate'
 
 RSpec.describe Array do
   describe '#sum' do
-    def self.with_array(given_ary, &example_group_block)
-      describe "for #{given_ary.inspect}" do
-        let(:ary) { given_ary }
-        let(:init) { 0 }
-        let(:block) { nil }
-        subject(:sum) { ary.sum(init, &block) }
-
-        module_eval(&example_group_block)
-      end
-    end
-
-    def self.with_init(init_value, &example_group_block)
-      context "with init=#{init_value.inspect}" do
-        let(:init) { init_value }
-
-        module_eval(&example_group_block)
-      end
-    end
-
-    def self.with_conversion(conversion_block, description, &example_group_block)
-      context "with conversion `#{description}`" do
-        let(:block) { conversion_block }
-
-        module_eval(&example_group_block)
-      end
-    end
-
-    def self.it_equals_with_type(x, type)
-      it { is_expected.to be_an(type) }
-      it { is_expected.to eq(x) }
-    end
-
-    def self.it_is_int_equal(n)
-      it_equals_with_type(n, Integer)
-    end
-
-    def self.it_is_rational_equal(n)
-      it_equals_with_type(n, Rational)
-    end
-
-    def self.it_is_float_equal(n)
-      it_equals_with_type(n, Float)
-    end
-
-    def self.it_is_complex_equal(n)
-      it_equals_with_type(n, Complex)
-    end
-
     with_array [] do
       it_is_int_equal(0)
 
