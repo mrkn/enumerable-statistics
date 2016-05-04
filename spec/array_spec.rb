@@ -10,6 +10,14 @@ RSpec.describe Array do
       with_init(0.0) do
         it_is_float_equal(0.0)
       end
+
+      context 'with a conversion block' do
+        it 'does not call the conversion block' do
+          expect { |b|
+            ary.sum(&b)
+          }.not_to yield_control
+        end
+      end
     end
 
     with_array [3] do
