@@ -69,8 +69,9 @@ struct RComplex {
 # define MUL_OVERFLOW_LONG_P(a, b) MUL_OVERFLOW_SIGNED_INTEGER_P(a, b, LONG_MIN, LONG_MAX)
 #endif
 
-static ID idPow, idPLUS, idMINUS, idSTAR, id_eqeq_p, id_idiv, id_negate, id_to_f, id_cmp;
-static ID id_each, id_real_p;
+static ID idPow, idPLUS, idMINUS, idSTAR, idDIV;
+static ID id_eqeq_p, id_idiv, id_negate, id_to_f, id_cmp;
+static ID id_each, id_real_p, id_sum;
 
 inline static VALUE
 f_add(VALUE x, VALUE y)
@@ -101,7 +102,6 @@ f_real_p(VALUE x)
     return rb_funcall(x, id_real_p, 0);
 }
 
-#ifndef HAVE_RB_FIX_PLUS
 static VALUE
 complex_new(VALUE klass, VALUE real, VALUE imag)
 {
@@ -115,6 +115,7 @@ complex_new(VALUE klass, VALUE real, VALUE imag)
   return (VALUE)obj;
 }
 
+#ifndef HAVE_RB_FIX_PLUS
 static VALUE
 complex_caonicalize_new(VALUE klass, VALUE real, VALUE imag)
 {
@@ -461,7 +462,6 @@ rb_rational_plus(VALUE self, VALUE other)
 }
 #endif
 
-#ifndef HAVE_ARRAY_SUM
 static VALUE
 ary_sum(int argc, VALUE* argv, VALUE ary)
 {
@@ -560,7 +560,112 @@ not_exact:
 
   return v;
 }
-#endif
+
+static void
+ary_mean_variance(VALUE ary, VALUE *mean_ptr, VALUE *variance_ptr)
+{
+  long i;
+  size_t n = 0;
+  double m = 0.0, m2 = 0.0, f = 0.0, c = 0.0;
+
+#define SET_MEAN(v) do { if (mean_ptr) *mean_ptr = (v); } while (0)
+#define SET_VARIANCE(v) do { if (variance_ptr) *variance_ptr = (v); } while (0)
+
+  SET_MEAN(DBL2NUM(0));
+  SET_VARIANCE(DBL2NUM(NAN));
+
+  if (RARRAY_LEN(ary) == 0)
+    return;
+  else if (RARRAY_LEN(ary) == 1) {
+    VALUE e = RARRAY_AREF(ary, 0);
+    if (rb_block_given_p())
+      e = rb_yield(e);
+    if (RB_TYPE_P(e, T_COMPLEX))
+      SET_MEAN(e);
+    else
+      SET_MEAN(rb_Float(e));
+    return;
+  }
+
+  if (variance_ptr == NULL) {
+    VALUE init = DBL2NUM(0.0);
+    VALUE const sum = ary_sum(1, &init, ary);
+    long const n = RARRAY_LEN(ary);
+    if (RB_TYPE_P(sum, T_COMPLEX)) {
+      VALUE real_mean, imag_mean;
+      VALUE const real = RCOMPLEX(sum)->real;
+      VALUE const imag = RCOMPLEX(sum)->imag;
+
+      if (RB_FLOAT_TYPE_P(real))
+        real_mean = DBL2NUM(RFLOAT_VALUE(real) / n);
+      else
+        real_mean = rb_funcall(real, idDIV, 1, DBL2NUM(n));
+
+      if (RB_FLOAT_TYPE_P(imag))
+        imag_mean = DBL2NUM(RFLOAT_VALUE(imag) / n);
+      else
+        imag_mean = rb_funcall(imag, idDIV, 1, DBL2NUM(n));
+
+      SET_MEAN(complex_new(CLASS_OF(sum), real_mean, imag_mean));
+    }
+    else if (RB_FLOAT_TYPE_P(sum)) {
+      SET_MEAN(DBL2NUM(RFLOAT_VALUE(sum) / n));
+    }
+    else
+      SET_MEAN(rb_funcall(sum, idDIV, 1, DBL2NUM(n)));
+    return;
+  }
+
+
+  for (i = 0; i < RARRAY_LEN(ary); ++i) {
+    double x, delta, y, t;
+    VALUE e;
+
+    n += 1;
+
+    e = RARRAY_AREF(ary, i);
+    if (rb_block_given_p())
+      e = rb_yield(e);
+
+    if (RB_FLOAT_TYPE_P(e))
+      x = RFLOAT_VALUE(e);
+    else if (FIXNUM_P(e))
+      x = FIX2LONG(e);
+    else if (RB_TYPE_P(e, T_BIGNUM))
+      x = rb_big2dbl(e);
+    else
+      x = rb_num2dbl(e);
+
+    y = x - c;
+    t = f + y;
+    c = (t - f) - y;
+    f = t;
+
+    delta = x - m;
+    m += delta / n;
+    m2 += delta * (x - m);
+  }
+
+  SET_MEAN(DBL2NUM(f / n));
+  if (n >= 2)
+    SET_VARIANCE(m2 / (n - 1));
+}
+
+static VALUE
+ary_mean_variance_m(VALUE ary)
+{
+  VALUE mean, variance;
+  ary_mean_variance(ary, &mean, &variance);
+  return rb_assoc_new(mean, variance);
+}
+
+static VALUE
+ary_mean(VALUE ary)
+{
+  VALUE mean;
+  ary_mean_variance(ary, &mean, NULL);
+  return mean;
+}
 
 #define ENUM_WANT_SVALUE() do { \
   e = rb_enum_values_pack(argc, argv); \
@@ -756,10 +861,12 @@ Init_extension(void)
 #ifndef HAVE_ARRAY_SUM
   rb_define_method(rb_cArray, "sum", ary_sum, -1);
 #endif
+  rb_define_method(rb_cArray, "mean", ary_mean, 0);
 
   idPLUS = '+';
   idMINUS = '-';
   idSTAR = '*';
+  idDIV = '/';
   idPow = rb_intern("**");
   id_eqeq_p = rb_intern("==");
   id_idiv = rb_intern("div");
@@ -768,4 +875,5 @@ Init_extension(void)
   id_cmp = rb_intern("<=>");
   id_each = rb_intern("each");
   id_real_p = rb_intern("real?");
+  id_sum = rb_intern("sum");
 }

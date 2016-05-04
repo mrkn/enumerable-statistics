@@ -4,6 +4,12 @@ require 'delegate'
 
 RSpec.describe Array do
   describe '#sum' do
+    let(:ary) { [] }
+    let(:init) { 0 }
+    let(:block) { nil }
+
+    subject(:sum) { ary.sum(init, &block) }
+
     with_array [] do
       it_is_int_equal(0)
 
@@ -128,6 +134,72 @@ RSpec.describe Array do
       with_init([]) do
         it { is_expected.to eq([1, [2], 3]) }
       end
+    end
+  end
+
+  describe '#mean' do
+    let(:ary) { [] }
+    let(:init) { 0 }
+    let(:block) { nil }
+
+    subject(:mean) { ary.mean(&block) }
+
+    with_array [] do
+      it_is_float_equal(0.0)
+
+      context 'with a conversion block' do
+        it_is_float_equal(0.0)
+
+        it 'does not call the block' do
+          expect { |b|
+            ary.mean(&b)
+          }.not_to yield_control
+        end
+      end
+    end
+
+    with_array [3] do
+      it_is_float_equal(3.0)
+
+      with_conversion ->(v) { v * 2 }, 'v * 2' do
+        it_is_float_equal(6.0)
+      end
+    end
+
+    with_array [3, 5] do
+      it_is_float_equal(4.0)
+
+      with_conversion ->(v) { v * 2 }, 'v * 2' do
+        it_is_float_equal(8.0)
+      end
+    end
+
+    with_array [3, Rational(5), Complex(7, 3)] do
+      it_is_complex_equal(Complex(5.0, 1.0))
+    end
+
+    with_array [Object.new] do
+      specify do
+        expect { subject }.to raise_error(TypeError)
+      end
+    end
+
+    large_number = 100_000_000
+    small_number = 1e-9
+    until (large_number + small_number) == large_number
+      small_number /= 10
+    end
+
+    with_array [large_number, *[small_number]*10] do
+      it_is_float_equal((large_number + small_number*10)/11.0)
+    end
+
+    with_array [Rational(large_number, 1), *[small_number]*10] do
+      it_is_float_equal((large_number + small_number*10)/11.0)
+    end
+
+    with_array [small_number, Rational(large_number, 1), *[small_number]*10] do
+      it_is_float_equal((Rational(large_number, 1) + small_number*11)/12.0)
     end
   end
 end

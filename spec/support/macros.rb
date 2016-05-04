@@ -11,10 +11,6 @@ module Enumerable
         def with_array(given_ary, &example_group_block)
           describe "for #{given_ary.inspect}" do
             let(:ary) { given_ary }
-            let(:init) { 0 }
-            let(:block) { nil }
-            subject(:sum) { ary.sum(init, &block) }
-
             module_eval(&example_group_block)
           end
         end
