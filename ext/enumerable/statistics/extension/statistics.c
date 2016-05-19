@@ -5,11 +5,13 @@
 #if RUBY_API_VERSION_CODE >= 20400
 /* for 2.4.0 or higher */
 # define HAVE_ARRAY_SUM
+# define HAVE_ENUM_SUM
 # undef HAVE_RB_FIX_PLUS
 # undef HAVE_RB_RATIONAL_PLUS
 #elif RUBY_API_VERSION_CODE >= 20200
 /* for 2.3.0 and 2.2.0 */
 # undef HAVE_ARRAY_SUM
+# undef HAVE_ENUM_SUM
 # undef HAVE_RB_FIX_PLUS
 # undef HAVE_RB_RATIONAL_PLUS
 #endif
@@ -564,6 +566,7 @@ not_exact:
   e = rb_enum_values_pack(argc, argv); \
 } while (0)
 
+#ifndef HAVE_ENUM_SUM
 struct enum_sum_memo {
   VALUE v, r;
   long n;
@@ -694,6 +697,7 @@ enum_stat_sum(int argc, VALUE* argv, VALUE obj)
     return memo.v;
   }
 }
+#endif
 
 static VALUE
 enum_stat_mean_variance(VALUE obj)
@@ -735,7 +739,9 @@ enum_stat_stddev(VALUE obj)
 void
 Init_extension(void)
 {
+#ifndef HAVE_ENUM_SUM
   rb_define_method(rb_mEnumerable, "sum", enum_stat_sum, -1);
+#endif
 
 #if 0
   rb_define_method(rb_mEnumerable, "mean_variance", enum_stat_mean_variance, 0);
