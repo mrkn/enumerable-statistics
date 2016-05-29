@@ -21,7 +21,7 @@ RSpec.describe Hash do
     end
 
     with_enum({ a: 3 }) do
-      with_conversion ->((k, v)) { v }, '(k, v) -> v' do
+      with_conversion ->((_, v)) { v }, '(k, v) -> v' do
         it_is_int_equal(3)
 
         with_init(0.0) do
@@ -31,67 +31,67 @@ RSpec.describe Hash do
     end
 
     with_enum({ a: 3, b: 5 }) do
-      with_conversion ->((k, v)) { v }, '(k, v) -> v' do
+      with_conversion ->((_, v)) { v }, '(k, v) -> v' do
         it_is_int_equal(8)
       end
     end
 
     with_enum({ a: 3, b: 5, c: 7 }) do
-      with_conversion ->((k, v)) { v }, '(k, v) -> v' do
+      with_conversion ->((_, v)) { v }, '(k, v) -> v' do
         it_is_int_equal(15)
       end
     end
 
     with_enum({ a: 3, b: Rational(5) }) do
-      with_conversion ->((k, v)) { v }, '(k, v) -> v' do
+      with_conversion ->((_, v)) { v }, '(k, v) -> v' do
         it_is_rational_equal(Rational(8))
       end
     end
 
     with_enum({ a: 3, b: 5, c: 7.0 }) do
-      with_conversion ->((k, v)) { v }, '(k, v) -> v' do
+      with_conversion ->((_, v)) { v }, '(k, v) -> v' do
         it_is_float_equal(15.0)
       end
     end
 
     with_enum({ a: 3, b: Rational(5), c: 7.0 }) do
-      with_conversion ->((k, v)) { v }, '(k, v) -> v' do
+      with_conversion ->((_, v)) { v }, '(k, v) -> v' do
         it_is_float_equal(15.0)
       end
     end
 
     with_enum({ a: 3, b: Rational(5), c: Complex(0, 1) }) do
-      with_conversion ->((k, v)) { v }, '(k, v) -> v' do
+      with_conversion ->((_, v)) { v }, '(k, v) -> v' do
         it_is_complex_equal(Complex(8, 1))
       end
     end
 
     with_enum({ a: 3, b: Rational(5), c: 7.0, d: Complex(0, 1) }) do
-      with_conversion ->((k, v)) { v }, '(k, v) -> v' do
+      with_conversion ->((_, v)) { v }, '(k, v) -> v' do
         it_is_complex_equal(Complex(15.0, 1))
       end
     end
 
     with_enum({ a: 3.5, b: 5 }) do
-      with_conversion ->((k, v)) { v }, '(k, v) -> v' do
+      with_conversion ->((_, v)) { v }, '(k, v) -> v' do
         it_is_float_equal(8.5)
       end
     end
 
     with_enum({ a: 2, b: 8.5 }) do
-      with_conversion ->((k, v)) { v }, '(k, v) -> v' do
+      with_conversion ->((_, v)) { v }, '(k, v) -> v' do
         it_is_float_equal(10.5)
       end
     end
 
     with_enum({ a: Rational(1, 2), b: Rational(1, 3) }) do
-      with_conversion ->((k, v)) { v }, '(k, v) -> v' do
+      with_conversion ->((_, v)) { v }, '(k, v) -> v' do
         it_is_rational_equal(Rational(5, 6))
       end
     end
 
     with_enum({ a: 2.0, b: Complex(0, 3.0) }) do
-      with_conversion ->((k, v)) { v }, '(k, v) -> v' do
+      with_conversion ->((_, v)) { v }, '(k, v) -> v' do
         it_is_complex_equal(Complex(2.0, 3.0))
       end
     end
@@ -105,7 +105,7 @@ RSpec.describe Hash do
     end
 
     with_enum({ a: Object.new }) do
-      with_conversion ->((k, v)) { v }, '(k, v) -> v' do
+      with_conversion ->((_, v)) { v }, '(k, v) -> v' do
         specify do
           expect { subject }.to raise_error(TypeError)
         end
@@ -120,25 +120,25 @@ RSpec.describe Hash do
 
     
     with_enum Hash[[*:a..:k].zip([large_number, *[small_number]*10])] do
-      with_conversion ->((k, v)) { v }, '(k, v) -> v' do
+      with_conversion ->((_, v)) { v }, '(k, v) -> v' do
         it_is_float_equal(large_number + small_number*10)
       end
     end
 
     with_enum Hash[[*:a..:k].zip([Rational(large_number, 1), *[small_number]*10])] do
-      with_conversion ->((k, v)) { v }, '(k, v) -> v' do
+      with_conversion ->((_, v)) { v }, '(k, v) -> v' do
         it_is_float_equal(large_number + small_number*10)
       end
     end
 
     with_enum Hash[[*:a..:l].zip([small_number, Rational(large_number, 1), *[small_number]*10])] do
-      with_conversion ->((k, v)) { v }, '(k, v) -> v' do
+      with_conversion ->((_, v)) { v }, '(k, v) -> v' do
         it_is_float_equal(large_number + small_number*11)
       end
     end
 
     with_enum({ a: "a", b: "b", c: "c"}) do
-      with_conversion ->((k, v)) { v }, '(k, v) -> v' do
+      with_conversion ->((_, v)) { v }, '(k, v) -> v' do
         with_init("") do
           it { is_expected.to eq("abc") }
         end
@@ -146,7 +146,7 @@ RSpec.describe Hash do
     end
 
     with_enum({ a: [1], b: [[2]], c: [3]}) do
-      with_conversion ->((k, v)) { v }, '(k, v) -> v' do
+      with_conversion ->((_, v)) { v }, '(k, v) -> v' do
         with_init([]) do
           it { is_expected.to eq([1, [2], 3]) }
         end
