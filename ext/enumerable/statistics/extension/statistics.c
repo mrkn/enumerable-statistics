@@ -648,7 +648,7 @@ ary_mean_variance(VALUE ary, VALUE *mean_ptr, VALUE *variance_ptr)
 
   SET_MEAN(DBL2NUM(f / n));
   if (n >= 2)
-    SET_VARIANCE(m2 / (n - 1));
+    SET_VARIANCE(DBL2NUM(m2 / (n - 1)));
 }
 
 static VALUE
@@ -665,6 +665,14 @@ ary_mean(VALUE ary)
   VALUE mean;
   ary_mean_variance(ary, &mean, NULL);
   return mean;
+}
+
+static VALUE
+ary_variance(VALUE ary)
+{
+  VALUE variance;
+  ary_mean_variance(ary, NULL, &variance);
+  return variance;
 }
 
 #define ENUM_WANT_SVALUE() do { \
@@ -862,6 +870,7 @@ Init_extension(void)
   rb_define_method(rb_cArray, "sum", ary_sum, -1);
 #endif
   rb_define_method(rb_cArray, "mean", ary_mean, 0);
+  rb_define_method(rb_cArray, "variance", ary_variance, 0);
 
   idPLUS = '+';
   idMINUS = '-';

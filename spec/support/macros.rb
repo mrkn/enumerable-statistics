@@ -64,6 +64,11 @@ module Enumerable
           it_equals_with_type(n, Float)
         end
 
+        def it_is_float_nan
+          it { is_expected.to be_an(Float) }
+          it { is_expected.to be_nan }
+        end
+
         def it_is_complex_equal(n)
           it_equals_with_type(n, Complex)
         end
