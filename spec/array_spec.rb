@@ -271,7 +271,7 @@ RSpec.describe Array do
     end
 
     with_array ary do
-      it { is_expected.to be_positive }
+      it { is_expected.to be > 0.0 }
     end
   end
 
