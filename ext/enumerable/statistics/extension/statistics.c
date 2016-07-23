@@ -869,6 +869,7 @@ Init_extension(void)
 #ifndef HAVE_ARRAY_SUM
   rb_define_method(rb_cArray, "sum", ary_sum, -1);
 #endif
+  rb_define_method(rb_cArray, "mean_variance", ary_mean_variance_m, 0);
   rb_define_method(rb_cArray, "mean", ary_mean, 0);
   rb_define_method(rb_cArray, "variance", ary_variance, 0);
 
