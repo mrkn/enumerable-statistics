@@ -239,7 +239,9 @@ RSpec.describe Array do
     end
 
     with_array [Object.new] do
-      it_is_float_nan
+      specify do
+        expect { subject }.to raise_error(TypeError)
+      end
     end
 
     with_array [Object.new, Object.new] do
@@ -265,7 +267,7 @@ RSpec.describe Array do
 
     while true
       ary = Array.new(4) { 1.0 + rand*1e-6 }
-      x = ary.map { |x| x**2 }.sum / ary.length.to_f
+      x = ary.map { |e| e**2 }.sum / ary.length.to_f
       y = (ary.sum / ary.length.to_f) ** 2
       break if x < y
     end
@@ -333,7 +335,7 @@ RSpec.describe Array do
 
     while true
       ary = Array.new(4) { 1.0 + rand*1e-6 }
-      x = ary.map { |x| x**2 }.sum / ary.length.to_f
+      x = ary.map { |e| e**2 }.sum / ary.length.to_f
       y = (ary.sum / ary.length.to_f) ** 2
       break if x < y
     end

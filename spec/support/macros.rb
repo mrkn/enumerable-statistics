@@ -23,10 +23,6 @@ module Enumerable
 
           describe "for #{description}" do
             let(:enum) { given_enum }
-            let(:init) { 0 }
-            let(:block) { nil }
-            subject(:sum) { enum.sum(init, &block) }
-
             module_eval(&example_group_block)
           end
         end

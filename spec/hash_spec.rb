@@ -4,6 +4,10 @@ require 'delegate'
 
 RSpec.describe Hash do
   describe '#sum' do
+    subject(:sum) { enum.sum(init, &block) }
+    let(:init) { 0 }
+    let(:block) { nil }
+
     with_enum({}) do
       it_is_int_equal(0)
 

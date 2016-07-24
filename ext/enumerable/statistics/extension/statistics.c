@@ -69,6 +69,9 @@ struct RComplex {
 # define MUL_OVERFLOW_LONG_P(a, b) MUL_OVERFLOW_SIGNED_INTEGER_P(a, b, LONG_MIN, LONG_MAX)
 #endif
 
+#define SET_MEAN(v) do { if (mean_ptr) *mean_ptr = (v); } while (0)
+#define SET_VARIANCE(v) do { if (variance_ptr) *variance_ptr = (v); } while (0)
+
 static ID idPow, idPLUS, idMINUS, idSTAR, idDIV;
 static ID id_eqeq_p, id_idiv, id_negate, id_to_f, id_cmp;
 static ID id_each, id_real_p, id_sum;
@@ -562,14 +565,38 @@ not_exact:
 }
 
 static void
+calculate_and_set_mean(VALUE *mean_ptr, VALUE sum, long const n)
+{
+  if (RB_TYPE_P(sum, T_COMPLEX)) {
+    VALUE real_mean, imag_mean;
+    VALUE const real = RCOMPLEX(sum)->real;
+    VALUE const imag = RCOMPLEX(sum)->imag;
+
+    if (RB_FLOAT_TYPE_P(real))
+      real_mean = DBL2NUM(RFLOAT_VALUE(real) / n);
+    else
+      real_mean = rb_funcall(real, idDIV, 1, DBL2NUM(n));
+
+    if (RB_FLOAT_TYPE_P(imag))
+      imag_mean = DBL2NUM(RFLOAT_VALUE(imag) / n);
+    else
+      imag_mean = rb_funcall(imag, idDIV, 1, DBL2NUM(n));
+
+    SET_MEAN(complex_new(CLASS_OF(sum), real_mean, imag_mean));
+  }
+  else if (RB_FLOAT_TYPE_P(sum)) {
+    SET_MEAN(DBL2NUM(RFLOAT_VALUE(sum) / n));
+  }
+  else
+    SET_MEAN(rb_funcall(sum, idDIV, 1, DBL2NUM(n)));
+}
+
+static void
 ary_mean_variance(VALUE ary, VALUE *mean_ptr, VALUE *variance_ptr)
 {
   long i;
   size_t n = 0;
   double m = 0.0, m2 = 0.0, f = 0.0, c = 0.0;
-
-#define SET_MEAN(v) do { if (mean_ptr) *mean_ptr = (v); } while (0)
-#define SET_VARIANCE(v) do { if (variance_ptr) *variance_ptr = (v); } while (0)
 
   SET_MEAN(DBL2NUM(0));
   SET_VARIANCE(DBL2NUM(NAN));
@@ -582,8 +609,10 @@ ary_mean_variance(VALUE ary, VALUE *mean_ptr, VALUE *variance_ptr)
       e = rb_yield(e);
     if (RB_TYPE_P(e, T_COMPLEX))
       SET_MEAN(e);
-    else
-      SET_MEAN(rb_Float(e));
+    else {
+      e = rb_Float(e);
+      SET_MEAN(e);
+    }
     return;
   }
 
@@ -591,28 +620,7 @@ ary_mean_variance(VALUE ary, VALUE *mean_ptr, VALUE *variance_ptr)
     VALUE init = DBL2NUM(0.0);
     VALUE const sum = ary_sum(1, &init, ary);
     long const n = RARRAY_LEN(ary);
-    if (RB_TYPE_P(sum, T_COMPLEX)) {
-      VALUE real_mean, imag_mean;
-      VALUE const real = RCOMPLEX(sum)->real;
-      VALUE const imag = RCOMPLEX(sum)->imag;
-
-      if (RB_FLOAT_TYPE_P(real))
-        real_mean = DBL2NUM(RFLOAT_VALUE(real) / n);
-      else
-        real_mean = rb_funcall(real, idDIV, 1, DBL2NUM(n));
-
-      if (RB_FLOAT_TYPE_P(imag))
-        imag_mean = DBL2NUM(RFLOAT_VALUE(imag) / n);
-      else
-        imag_mean = rb_funcall(imag, idDIV, 1, DBL2NUM(n));
-
-      SET_MEAN(complex_new(CLASS_OF(sum), real_mean, imag_mean));
-    }
-    else if (RB_FLOAT_TYPE_P(sum)) {
-      SET_MEAN(DBL2NUM(RFLOAT_VALUE(sum) / n));
-    }
-    else
-      SET_MEAN(rb_funcall(sum, idDIV, 1, DBL2NUM(n)));
+    calculate_and_set_mean(mean_ptr, sum, n);
     return;
   }
 
@@ -679,10 +687,9 @@ ary_variance(VALUE ary)
   e = rb_enum_values_pack(argc, argv); \
 } while (0)
 
-#ifndef HAVE_ENUM_SUM
 struct enum_sum_memo {
   VALUE v, r;
-  long n;
+  long n, count;
   double f, c;
   int block_given;
   int float_value;
@@ -702,6 +709,8 @@ enum_sum_iter_i(RB_BLOCK_CALL_FUNC_ARGLIST(e, args))
 
   if (memo->block_given)
     e = rb_yield(e);
+
+  memo->count += 1;
 
   if (memo->float_value)
     goto float_value;
@@ -779,16 +788,14 @@ enum_sum_iter_i(RB_BLOCK_CALL_FUNC_ARGLIST(e, args))
   return Qnil;
 }
 
-static VALUE
-enum_stat_sum(int argc, VALUE* argv, VALUE obj)
+static void
+enum_sum_count(VALUE obj, VALUE init, VALUE *sum_ptr, long *count_ptr)
 {
   struct enum_sum_memo memo;
 
-  if (rb_scan_args(argc, argv, "01", &memo.v) == 0)
-    memo.v = LONG2FIX(0);
-
+  memo.count = 0;
+  memo.v = init;
   memo.block_given = rb_block_given_p();
-
   memo.n = 0;
   memo.r = Qundef;
 
@@ -800,53 +807,164 @@ enum_stat_sum(int argc, VALUE* argv, VALUE obj)
   rb_block_call(obj, id_each, 0, 0, enum_sum_iter_i, (VALUE)&memo);
 
   if (memo.float_value) {
-    return DBL2NUM(memo.f);
+    if (sum_ptr)
+      *sum_ptr = DBL2NUM(memo.f);
   }
   else {
     if (memo.n != 0)
       memo.v = rb_fix_plus(LONG2FIX(memo.n), memo.v);
     if (memo.r != Qundef)
       memo.v = rb_rational_plus(memo.r, memo.v);
-    return memo.v;
+    if (sum_ptr)
+      *sum_ptr = memo.v;
   }
+
+  if (count_ptr)
+    *count_ptr = memo.count;
 }
-#endif
 
 static VALUE
-enum_stat_mean_variance(VALUE obj)
+enum_stat_sum(int argc, VALUE* argv, VALUE obj)
 {
-  return rb_assoc_new(INT2FIX(0), INT2FIX(0));
+  VALUE sum, init;
+
+  if (rb_scan_args(argc, argv, "01", &init) == 0)
+    init = LONG2FIX(0);
+
+  enum_sum_count(obj, init, &sum, NULL);
+
+  return sum;
+}
+
+struct enum_mean_variance_memo {
+  int block_given;
+  long n;
+  double m, m2, f, c;
+};
+
+static VALUE
+enum_mean_variance_iter_i(RB_BLOCK_CALL_FUNC_ARGLIST(e, args))
+{
+  double x, delta, y, t;
+
+  struct enum_mean_variance_memo *memo = (struct enum_mean_variance_memo *)args;
+  long n = memo->n;
+  double m = memo->m;
+  double m2 = memo->m2;
+  double f = memo->f;
+  double c = memo->c;
+
+  ENUM_WANT_SVALUE();
+
+  if (memo->block_given)
+    e = rb_yield(e);
+
+  n += 1;
+
+  if (RB_FLOAT_TYPE_P(e))
+    x = RFLOAT_VALUE(e);
+  else if (FIXNUM_P(e))
+    x = FIX2LONG(e);
+  else if (RB_TYPE_P(e, T_BIGNUM))
+    x = rb_big2dbl(e);
+  else {
+    x = rb_num2dbl(e);
+  }
+
+  y = x - c;
+  t = f + y;
+  c = (t - f) - y;
+  f = t;
+
+  delta = x - m;
+  m += delta / n;
+  m2 += delta * (x - m);
+
+  memo->n = n;
+  memo->m = m;
+  memo->m2 = m2;
+  memo->f = f;
+  memo->c = c;
+
+  return Qnil;
+}
+
+static void
+enum_stat_mean_variance(VALUE obj, VALUE *mean_ptr, VALUE *variance_ptr)
+{
+  struct enum_mean_variance_memo memo;
+
+  SET_MEAN(DBL2NUM(0));
+  SET_VARIANCE(DBL2NUM(NAN));
+
+  if (variance_ptr == NULL) {
+    long n;
+    VALUE sum;
+    VALUE init = DBL2NUM(0.0);
+    enum_sum_count(obj, init, &sum, &n);
+    if (n > 0)
+      calculate_and_set_mean(mean_ptr, sum, n);
+    return;
+  }
+
+  memo.block_given = rb_block_given_p();
+  memo.n = 0;
+  memo.m = 0.0;
+  memo.m2 = 0.0;
+  memo.f = 0.0;
+  memo.c = 0.0;
+
+  rb_block_call(obj, id_each, 0, 0, enum_mean_variance_iter_i, (VALUE)&memo);
+
+  if (memo.n == 0)
+    return;
+  else if (memo.n == 1)
+    SET_MEAN(DBL2NUM(memo.f));
+  else {
+    SET_MEAN(DBL2NUM(memo.f / memo.n));
+    SET_VARIANCE(DBL2NUM(memo.m2 / (memo.n - 1)));
+  }
+}
+
+static VALUE
+enum_stat_mean_variance_m(VALUE obj)
+{
+  VALUE mean, variance;
+  enum_stat_mean_variance(obj, &mean, &variance);
+  return rb_assoc_new(mean, variance);
 }
 
 static VALUE
 enum_stat_mean(VALUE obj)
 {
-  VALUE ary = enum_stat_mean_variance(obj);
-  return RARRAY_AREF(ary, 0);
+  VALUE mean;
+  enum_stat_mean_variance(obj, &mean, NULL);
+  return mean;
 }
 
 static VALUE
 enum_stat_variance(VALUE obj)
 {
-  VALUE ary = enum_stat_mean_variance(obj);
-  return RARRAY_AREF(ary, 1);
+  VALUE variance;
+  enum_stat_mean_variance(obj, NULL, &variance);
+  return variance;
 }
 
 static VALUE
 enum_stat_mean_stddev(VALUE obj)
 {
-  VALUE ary = enum_stat_mean_variance(obj);
-  VALUE var = RARRAY_AREF(ary, 1);
-  VALUE stddev = rb_funcall(var, idPow, 1, DBL2NUM(0.5));
-  RARRAY_ASET(ary, 1, stddev);
-  return ary;
+  VALUE mean, variance;
+  enum_stat_mean_variance(obj, &mean, &variance);
+  VALUE stddev = rb_funcall(variance, idPow, 1, DBL2NUM(0.5));
+  return rb_assoc_new(mean, stddev);
 }
 
 static VALUE
 enum_stat_stddev(VALUE obj)
 {
-  VALUE ary = enum_stat_mean_stddev(obj);
-  return RARRAY_AREF(ary, 1);
+  VALUE variance = enum_stat_variance(obj);
+  VALUE stddev = rb_funcall(variance, idPow, 1, DBL2NUM(0.5));
+  return stddev;
 }
 
 void
@@ -856,11 +974,11 @@ Init_extension(void)
   rb_define_method(rb_mEnumerable, "sum", enum_stat_sum, -1);
 #endif
 
-#if 0
-  rb_define_method(rb_mEnumerable, "mean_variance", enum_stat_mean_variance, 0);
   rb_define_method(rb_mEnumerable, "mean", enum_stat_mean, 0);
-  rb_define_alias(rb_mEnumerable, "average", "mean");
   rb_define_method(rb_mEnumerable, "variance", enum_stat_variance, 0);
+  rb_define_method(rb_mEnumerable, "mean_variance", enum_stat_mean_variance_m, 0);
+#if 0
+  rb_define_alias(rb_mEnumerable, "average", "mean");
   rb_define_alias(rb_mEnumerable, "var", "variance");
   rb_define_method(rb_mEnumerable, "mean_stddev", enum_stat_mean_stddev, 0);
   rb_define_method(rb_mEnumerable, "stddev", enum_stat_stddev, 0);
