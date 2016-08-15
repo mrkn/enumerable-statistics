@@ -974,9 +974,9 @@ Init_extension(void)
   rb_define_method(rb_mEnumerable, "sum", enum_stat_sum, -1);
 #endif
 
+  rb_define_method(rb_mEnumerable, "mean_variance", enum_stat_mean_variance_m, 0);
   rb_define_method(rb_mEnumerable, "mean", enum_stat_mean, 0);
   rb_define_method(rb_mEnumerable, "variance", enum_stat_variance, 0);
-  rb_define_method(rb_mEnumerable, "mean_variance", enum_stat_mean_variance_m, 0);
 #if 0
   rb_define_alias(rb_mEnumerable, "average", "mean");
   rb_define_alias(rb_mEnumerable, "var", "variance");
