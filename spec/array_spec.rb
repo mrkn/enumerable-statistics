@@ -344,4 +344,149 @@ RSpec.describe Array do
       it { is_expected.to eq([ary.mean, ary.variance]) }
     end
   end
+
+  describe '#mean_stddev' do
+    let(:ary) { [] }
+    let(:block) { nil }
+
+    subject(:mean_stddev) { ary.mean_stddev(&block) }
+
+    with_array [] do
+      specify do
+        expect(subject[0]).to eq(0.0)
+        expect(subject[1]).to be_nan
+      end
+
+      context 'with a conversion block' do
+        it 'does not call the block' do
+          expect { |b|
+            ary.mean_stddev(&b)
+          }.not_to yield_control
+        end
+      end
+    end
+
+    with_array [3] do
+      specify do
+        expect(subject[0]).to eq(3.0)
+        expect(subject[1]).to be_nan
+      end
+
+      with_conversion ->(v) { v * 2 }, 'v * 2' do
+        specify do
+          expect(subject[0]).to eq(6.0)
+          expect(subject[1]).to be_nan
+        end
+      end
+    end
+
+    with_array [Object.new] do
+      specify do
+        expect { subject }.to raise_error(TypeError)
+      end
+    end
+
+    large_number = 100_000_000
+    small_number = 1e-9
+    until (large_number + small_number) == large_number
+      small_number /= 10
+    end
+
+    ary = [large_number, *[small_number]*10]
+    m = ary.mean
+    s2 = ary.map { |x| (x - m)**2 }.sum
+    var = s2 / (ary.length - 1).to_f
+    sd = Math.sqrt(var)
+
+    with_array ary do
+      it { is_expected.to eq([m, sd]) }
+    end
+
+    while true
+      ary = Array.new(4) { 1.0 + rand*1e-6 }
+      x = ary.map { |e| e**2 }.sum / ary.length.to_f
+      y = (ary.sum / ary.length.to_f) ** 2
+      break if x < y
+    end
+
+    with_array ary do
+      it { is_expected.to eq([ary.mean, Math.sqrt(ary.variance)]) }
+    end
+  end
+
+  describe '#stddev' do
+    let(:ary) { [] }
+    let(:block) { nil }
+
+    subject(:stddev) { ary.stddev(&block) }
+
+    with_array [] do
+      it_is_float_nan
+
+      context 'with a conversion block' do
+        it_is_float_nan
+
+        it 'does not call the block' do
+          expect { |b|
+            ary.stddev(&b)
+          }.not_to yield_control
+        end
+      end
+    end
+
+    with_array [3] do
+      it_is_float_nan
+
+      with_conversion ->(v) { v * 2 }, 'v * 2' do
+        it_is_float_nan
+      end
+    end
+
+    with_array [3, 5] do
+      it_is_float_equal(Math.sqrt(2.0))
+    end
+
+    with_array [3.0, 5.0] do
+      it_is_float_equal(Math.sqrt(2.0))
+    end
+
+    with_array [Object.new] do
+      specify do
+        expect { subject }.to raise_error(TypeError)
+      end
+    end
+
+    with_array [Object.new, Object.new] do
+      specify do
+        expect { subject }.to raise_error(TypeError)
+      end
+    end
+
+    large_number = 100_000_000
+    small_number = 1e-9
+    until (large_number + small_number) == large_number
+      small_number /= 10
+    end
+
+    ary = [large_number, *[small_number]*10]
+    m = ary.mean
+    s2 = ary.map { |x| (x - m)**2 }.sum
+    var = s2 / (ary.length - 1).to_f
+    sd = Math.sqrt(var)
+
+    with_array ary do
+      it_is_float_equal(sd)
+    end
+
+    while true
+      ary = Array.new(4) { 1.0 + rand*1e-6 }
+      x = ary.map { |e| e**2 }.sum / ary.length.to_f
+      y = (ary.sum / ary.length.to_f) ** 2
+      break if x < y
+    end
+
+    with_array ary do
+      it { is_expected.to be > 0.0 }
+    end
+  end
 end

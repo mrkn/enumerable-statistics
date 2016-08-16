@@ -16,6 +16,17 @@
 # undef HAVE_RB_RATIONAL_PLUS
 #endif
 
+#ifndef RB_INTEGER_TYPE_P
+# define RB_INTEGER_TYPE_P(obj) enum_stat_integer_type_p(obj)
+static inline int
+enum_stat_integer_type_p(VALUE obj)
+{
+    return (RB_FIXNUM_P(obj) ||
+	    (!RB_SPECIAL_CONST_P(obj) &&
+	     RB_BUILTIN_TYPE(obj) == RUBY_T_BIGNUM));
+}
+#endif
+
 #ifndef HAVE_TYPE_STRUCT_RRATIONAL
 struct RRational {
     struct RBasic basic;
@@ -71,6 +82,8 @@ struct RComplex {
 
 #define SET_MEAN(v) do { if (mean_ptr) *mean_ptr = (v); } while (0)
 #define SET_VARIANCE(v) do { if (variance_ptr) *variance_ptr = (v); } while (0)
+
+static VALUE half_in_rational;
 
 static ID idPow, idPLUS, idMINUS, idSTAR, idDIV;
 static ID id_eqeq_p, id_idiv, id_negate, id_to_f, id_cmp;
@@ -951,11 +964,22 @@ enum_variance(VALUE obj)
 }
 
 static VALUE
+sqrt_value(VALUE x)
+{
+  if (RB_INTEGER_TYPE_P(x) || RB_FLOAT_TYPE_P(x) || RB_TYPE_P(x, T_RATIONAL)) {
+    double f = NUM2DBL(x);
+    return DBL2NUM(sqrt(f));
+  }
+
+  return rb_funcall(x, idPow, 1, half_in_rational);
+}
+
+static VALUE
 enum_mean_stddev(VALUE obj)
 {
   VALUE mean, variance;
   enum_mean_variance(obj, &mean, &variance);
-  VALUE stddev = rb_funcall(variance, idPow, 1, DBL2NUM(0.5));
+  VALUE stddev = sqrt_value(variance);
   return rb_assoc_new(mean, stddev);
 }
 
@@ -963,7 +987,24 @@ static VALUE
 enum_stddev(VALUE obj)
 {
   VALUE variance = enum_variance(obj);
-  VALUE stddev = rb_funcall(variance, idPow, 1, DBL2NUM(0.5));
+  VALUE stddev = sqrt_value(variance);
+  return stddev;
+}
+
+static VALUE
+ary_mean_stddev(VALUE ary)
+{
+  VALUE mean, variance;
+  ary_mean_variance(ary, &mean, &variance);
+  VALUE stddev = sqrt_value(variance);
+  return rb_assoc_new(mean, stddev);
+}
+
+static VALUE
+ary_stddev(VALUE ary)
+{
+  VALUE variance = ary_variance(ary);
+  VALUE stddev = sqrt_value(variance);
   return stddev;
 }
 
@@ -977,11 +1018,11 @@ Init_extension(void)
   rb_define_method(rb_mEnumerable, "mean_variance", enum_mean_variance_m, 0);
   rb_define_method(rb_mEnumerable, "mean", enum_mean, 0);
   rb_define_method(rb_mEnumerable, "variance", enum_variance, 0);
+  rb_define_method(rb_mEnumerable, "mean_stddev", enum_mean_stddev, 0);
+  rb_define_method(rb_mEnumerable, "stddev", enum_stddev, 0);
 #if 0
   rb_define_alias(rb_mEnumerable, "average", "mean");
   rb_define_alias(rb_mEnumerable, "var", "variance");
-  rb_define_method(rb_mEnumerable, "mean_stddev", enum_mean_stddev, 0);
-  rb_define_method(rb_mEnumerable, "stddev", enum_stddev, 0);
 #endif
 
 #ifndef HAVE_ARRAY_SUM
@@ -990,6 +1031,11 @@ Init_extension(void)
   rb_define_method(rb_cArray, "mean_variance", ary_mean_variance_m, 0);
   rb_define_method(rb_cArray, "mean", ary_mean, 0);
   rb_define_method(rb_cArray, "variance", ary_variance, 0);
+  rb_define_method(rb_cArray, "mean_stddev", ary_mean_stddev, 0);
+  rb_define_method(rb_cArray, "stddev", ary_stddev, 0);
+
+  half_in_rational = nurat_s_new_internal(rb_cRational, INT2FIX(1), INT2FIX(2));
+  rb_gc_register_mark_object(half_in_rational);
 
   idPLUS = '+';
   idMINUS = '-';
