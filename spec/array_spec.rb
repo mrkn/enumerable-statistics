@@ -216,7 +216,7 @@ RSpec.describe Array do
 
         it 'does not call the block' do
           expect { |b|
-            ary.mean(&b)
+            ary.variance(&b)
           }.not_to yield_control
         end
       end

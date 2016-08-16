@@ -211,7 +211,7 @@ RSpec.describe Enumerable do
 
         it 'does not call the block' do
           expect { |b|
-            enum.mean(&b)
+            enum.variance(&b)
           }.not_to yield_control
         end
       end
