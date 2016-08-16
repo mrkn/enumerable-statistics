@@ -87,7 +87,7 @@ static VALUE half_in_rational;
 
 static ID idPow, idPLUS, idMINUS, idSTAR, idDIV;
 static ID id_eqeq_p, id_idiv, id_negate, id_to_f, id_cmp;
-static ID id_each, id_real_p, id_sum;
+static ID id_each, id_real_p, id_sum, id_population;
 
 inline static VALUE
 f_add(VALUE x, VALUE y)
@@ -637,7 +637,6 @@ ary_mean_variance(VALUE ary, VALUE *mean_ptr, VALUE *variance_ptr, size_t ddof)
     return;
   }
 
-
   for (i = 0; i < RARRAY_LEN(ary); ++i) {
     double x, delta, y, t;
     VALUE e;
@@ -668,15 +667,35 @@ ary_mean_variance(VALUE ary, VALUE *mean_ptr, VALUE *variance_ptr, size_t ddof)
   }
 
   SET_MEAN(DBL2NUM(f / n));
-  if (n >= 2)
+  if (n >= 2) {
+    assert(n > ddof);
     SET_VARIANCE(DBL2NUM(m2 / (n - ddof)));
+  }
+}
+
+static int
+opt_population_p(VALUE opts)
+{
+  ID kwargs = id_population;
+  VALUE population = Qfalse;
+
+  if (!NIL_P(opts))
+    rb_get_kwargs(opts, &kwargs, 0, 1, &population);
+
+  return RTEST(population);
 }
 
 static VALUE
-ary_mean_variance_m(VALUE ary)
+ary_mean_variance_m(int argc, VALUE* argv, VALUE ary)
 {
-  VALUE mean, variance;
-  ary_mean_variance(ary, &mean, &variance, 1);
+  VALUE opts, mean, variance;
+  size_t ddof = 1;
+
+  rb_scan_args(argc, argv, "0:", &opts);
+  if (opt_population_p(opts))
+    ddof = 0;
+
+  ary_mean_variance(ary, &mean, &variance, ddof);
   return rb_assoc_new(mean, variance);
 }
 
@@ -689,10 +708,16 @@ ary_mean(VALUE ary)
 }
 
 static VALUE
-ary_variance(VALUE ary)
+ary_variance(int argc, VALUE* argv, VALUE ary)
 {
-  VALUE variance;
-  ary_mean_variance(ary, NULL, &variance, 1);
+  VALUE opts, variance;
+  size_t ddof = 1;
+
+  rb_scan_args(argc, argv, "0:", &opts);
+  if (opt_population_p(opts))
+    ddof = 0;
+
+  ary_mean_variance(ary, NULL, &variance, ddof);
   return variance;
 }
 
@@ -935,15 +960,23 @@ enum_mean_variance(VALUE obj, VALUE *mean_ptr, VALUE *variance_ptr, size_t ddof)
     SET_MEAN(DBL2NUM(memo.f));
   else {
     SET_MEAN(DBL2NUM(memo.f / memo.n));
-    SET_VARIANCE(DBL2NUM(memo.m2 / (memo.n - ddof)));
+
+    assert(memo.n > ddof);
+    SET_VARIANCE(DBL2NUM(memo.m2 / (double)(memo.n - ddof)));
   }
 }
 
 static VALUE
-enum_mean_variance_m(VALUE obj)
+enum_mean_variance_m(int argc, VALUE* argv, VALUE obj)
 {
-  VALUE mean, variance;
-  enum_mean_variance(obj, &mean, &variance, 1);
+  VALUE opts, mean, variance;
+  size_t ddof = 1;
+
+  rb_scan_args(argc, argv, "0:", &opts);
+  if (opt_population_p(opts))
+    ddof = 0;
+
+  enum_mean_variance(obj, &mean, &variance, ddof);
   return rb_assoc_new(mean, variance);
 }
 
@@ -956,10 +989,16 @@ enum_mean(VALUE obj)
 }
 
 static VALUE
-enum_variance(VALUE obj)
+enum_variance(int argc, VALUE* argv, VALUE obj)
 {
-  VALUE variance;
-  enum_mean_variance(obj, NULL, &variance, 1);
+  VALUE opts, variance;
+  size_t ddof = 1;
+
+  rb_scan_args(argc, argv, "0:", &opts);
+  if (opt_population_p(opts))
+    ddof = 0;
+
+  enum_mean_variance(obj, NULL, &variance, ddof);
   return variance;
 }
 
@@ -975,35 +1014,47 @@ sqrt_value(VALUE x)
 }
 
 static VALUE
-enum_mean_stddev(VALUE obj)
+enum_mean_stddev(int argc, VALUE* argv, VALUE obj)
 {
-  VALUE mean, variance;
-  enum_mean_variance(obj, &mean, &variance, 1);
+  VALUE opts, mean, variance;
+  size_t ddof = 1;
+
+  rb_scan_args(argc, argv, "0:", &opts);
+  if (opt_population_p(opts))
+    ddof = 0;
+
+  enum_mean_variance(obj, &mean, &variance, ddof);
   VALUE stddev = sqrt_value(variance);
   return rb_assoc_new(mean, stddev);
 }
 
 static VALUE
-enum_stddev(VALUE obj)
+enum_stddev(int argc, VALUE* argv, VALUE obj)
 {
-  VALUE variance = enum_variance(obj);
+  VALUE variance = enum_variance(argc, argv, obj);
   VALUE stddev = sqrt_value(variance);
   return stddev;
 }
 
 static VALUE
-ary_mean_stddev(VALUE ary)
+ary_mean_stddev(int argc, VALUE* argv, VALUE ary)
 {
-  VALUE mean, variance;
-  ary_mean_variance(ary, &mean, &variance, 1);
+  VALUE opts, mean, variance;
+  size_t ddof = 1;
+
+  rb_scan_args(argc, argv, "0:", &opts);
+  if (opt_population_p(opts))
+    ddof = 0;
+
+  ary_mean_variance(ary, &mean, &variance, ddof);
   VALUE stddev = sqrt_value(variance);
   return rb_assoc_new(mean, stddev);
 }
 
 static VALUE
-ary_stddev(VALUE ary)
+ary_stddev(int argc, VALUE* argv, VALUE ary)
 {
-  VALUE variance = ary_variance(ary);
+  VALUE variance = ary_variance(argc, argv, ary);
   VALUE stddev = sqrt_value(variance);
   return stddev;
 }
@@ -1015,20 +1066,20 @@ Init_extension(void)
   rb_define_method(rb_mEnumerable, "sum", enum_sum, -1);
 #endif
 
-  rb_define_method(rb_mEnumerable, "mean_variance", enum_mean_variance_m, 0);
+  rb_define_method(rb_mEnumerable, "mean_variance", enum_mean_variance_m, -1);
   rb_define_method(rb_mEnumerable, "mean", enum_mean, 0);
-  rb_define_method(rb_mEnumerable, "variance", enum_variance, 0);
-  rb_define_method(rb_mEnumerable, "mean_stddev", enum_mean_stddev, 0);
-  rb_define_method(rb_mEnumerable, "stddev", enum_stddev, 0);
+  rb_define_method(rb_mEnumerable, "variance", enum_variance, -1);
+  rb_define_method(rb_mEnumerable, "mean_stddev", enum_mean_stddev, -1);
+  rb_define_method(rb_mEnumerable, "stddev", enum_stddev, -1);
 
 #ifndef HAVE_ARRAY_SUM
   rb_define_method(rb_cArray, "sum", ary_sum, -1);
 #endif
-  rb_define_method(rb_cArray, "mean_variance", ary_mean_variance_m, 0);
+  rb_define_method(rb_cArray, "mean_variance", ary_mean_variance_m, -1);
   rb_define_method(rb_cArray, "mean", ary_mean, 0);
-  rb_define_method(rb_cArray, "variance", ary_variance, 0);
-  rb_define_method(rb_cArray, "mean_stddev", ary_mean_stddev, 0);
-  rb_define_method(rb_cArray, "stddev", ary_stddev, 0);
+  rb_define_method(rb_cArray, "variance", ary_variance, -1);
+  rb_define_method(rb_cArray, "mean_stddev", ary_mean_stddev, -1);
+  rb_define_method(rb_cArray, "stddev", ary_stddev, -1);
 
   half_in_rational = nurat_s_new_internal(rb_cRational, INT2FIX(1), INT2FIX(2));
   rb_gc_register_mark_object(half_in_rational);
@@ -1046,4 +1097,5 @@ Init_extension(void)
   id_each = rb_intern("each");
   id_real_p = rb_intern("real?");
   id_sum = rb_intern("sum");
+  id_population = rb_intern("population");
 }

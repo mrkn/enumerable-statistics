@@ -227,6 +227,21 @@ RSpec.describe Enumerable do
 
     with_enum [3, 5] do
       it_is_float_equal(2.0)
+
+      context 'with population: nil' do
+        subject(:variance) { enum.variance(population: nil, &block) }
+        it_is_float_equal(2.0)
+      end
+
+      context 'with population: false' do
+        subject(:variance) { enum.variance(population: false, &block) }
+        it_is_float_equal(2.0)
+      end
+
+      context 'with population: true' do
+        subject(:variance) { enum.variance(population: true, &block) }
+        it_is_float_equal(1.0)
+      end
     end
 
     with_enum [3.0, 5.0] do
@@ -307,6 +322,32 @@ RSpec.describe Enumerable do
       end
     end
 
+    with_enum [3.0, 5.0] do
+      context 'with population: nil' do
+        subject(:mean_variance) { enum.mean_variance(population: nil, &block) }
+        specify do
+          expect(subject[0]).to eq(4.0)
+          expect(subject[1]).to eq(2.0)
+        end
+      end
+
+      context 'with population: false' do
+        subject(:mean_variance) { enum.mean_variance(population: false, &block) }
+        specify do
+          expect(subject[0]).to eq(4.0)
+          expect(subject[1]).to eq(2.0)
+        end
+      end
+
+      context 'with population: true' do
+        subject(:mean_variance) { enum.mean_variance(population: true, &block) }
+        specify do
+          expect(subject[0]).to eq(4.0)
+          expect(subject[1]).to eq(1.0)
+        end
+      end
+    end
+
     with_enum [Object.new] do
       specify do
         expect { subject }.to raise_error(TypeError)
@@ -369,6 +410,21 @@ RSpec.describe Enumerable do
 
     with_enum [3, 5] do
       it_is_float_equal(Math.sqrt(2.0))
+
+      context 'with population: nil' do
+        subject(:stddev) { enum.stddev(population: nil, &block) }
+        it_is_float_equal(Math.sqrt(2.0))
+      end
+
+      context 'with population: false' do
+        subject(:stddev) { enum.stddev(population: false, &block) }
+        it_is_float_equal(Math.sqrt(2.0))
+      end
+
+      context 'with population: true' do
+        subject(:stddev) { enum.stddev(population: true, &block) }
+        it_is_float_equal(1.0)
+      end
     end
 
     with_enum [3.0, 5.0] do
@@ -446,6 +502,32 @@ RSpec.describe Enumerable do
         specify do
           expect(subject[0]).to eq(6.0)
           expect(subject[1]).to be_nan
+        end
+      end
+    end
+
+    with_enum [3.0, 5.0] do
+      context 'with population: nil' do
+        subject(:mean_stddev) { enum.mean_stddev(population: nil, &block) }
+        specify do
+          expect(subject[0]).to eq(4.0)
+          expect(subject[1]).to eq(Math.sqrt(2.0))
+        end
+      end
+
+      context 'with population: false' do
+        subject(:mean_stddev) { enum.mean_stddev(population: false, &block) }
+        specify do
+          expect(subject[0]).to eq(4.0)
+          expect(subject[1]).to eq(Math.sqrt(2.0))
+        end
+      end
+
+      context 'with population: true' do
+        subject(:mean_stddev) { enum.mean_stddev(population: true, &block) }
+        specify do
+          expect(subject[0]).to eq(4.0)
+          expect(subject[1]).to eq(1.0)
         end
       end
     end

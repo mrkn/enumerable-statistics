@@ -236,6 +236,21 @@ RSpec.describe Array do
 
     with_array [3.0, 5.0] do
       it_is_float_equal(2.0)
+
+      context 'with population: nil' do
+        subject(:variance) { ary.variance(population: nil, &block) }
+        it_is_float_equal(2.0)
+      end
+
+      context 'with population: false' do
+        subject(:variance) { ary.variance(population: false, &block) }
+        it_is_float_equal(2.0)
+      end
+
+      context 'with population: true' do
+        subject(:variance) { ary.variance(population: true, &block) }
+        it_is_float_equal(1.0)
+      end
     end
 
     with_array [Object.new] do
@@ -312,6 +327,32 @@ RSpec.describe Array do
       end
     end
 
+    with_array [3.0, 5.0] do
+      context 'with population: nil' do
+        subject(:mean_variance) { ary.mean_variance(population: nil, &block) }
+        specify do
+          expect(subject[0]).to eq(4.0)
+          expect(subject[1]).to eq(2.0)
+        end
+      end
+
+      context 'with population: false' do
+        subject(:mean_variance) { ary.mean_variance(population: false, &block) }
+        specify do
+          expect(subject[0]).to eq(4.0)
+          expect(subject[1]).to eq(2.0)
+        end
+      end
+
+      context 'with population: true' do
+        subject(:mean_variance) { ary.mean_variance(population: true, &block) }
+        specify do
+          expect(subject[0]).to eq(4.0)
+          expect(subject[1]).to eq(1.0)
+        end
+      end
+    end
+
     with_array [Object.new] do
       specify do
         expect { subject }.to raise_error(TypeError)
@@ -376,6 +417,32 @@ RSpec.describe Array do
         specify do
           expect(subject[0]).to eq(6.0)
           expect(subject[1]).to be_nan
+        end
+      end
+    end
+
+    with_array [3.0, 5.0] do
+      context 'with population: nil' do
+        subject(:mean_stddev) { ary.mean_stddev(population: nil, &block) }
+        specify do
+          expect(subject[0]).to eq(4.0)
+          expect(subject[1]).to eq(Math.sqrt(2.0))
+        end
+      end
+
+      context 'with population: false' do
+        subject(:mean_stddev) { ary.mean_stddev(population: false, &block) }
+        specify do
+          expect(subject[0]).to eq(4.0)
+          expect(subject[1]).to eq(Math.sqrt(2.0))
+        end
+      end
+
+      context 'with population: true' do
+        subject(:mean_stddev) { ary.mean_stddev(population: true, &block) }
+        specify do
+          expect(subject[0]).to eq(4.0)
+          expect(subject[1]).to eq(1.0)
         end
       end
     end
@@ -448,6 +515,21 @@ RSpec.describe Array do
 
     with_array [3.0, 5.0] do
       it_is_float_equal(Math.sqrt(2.0))
+
+      context 'with population: nil' do
+        subject(:stddev) { ary.stddev(population: nil, &block) }
+        it_is_float_equal(Math.sqrt(2.0))
+      end
+
+      context 'with population: false' do
+        subject(:stddev) { ary.stddev(population: false, &block) }
+        it_is_float_equal(Math.sqrt(2.0))
+      end
+
+      context 'with population: true' do
+        subject(:stddev) { ary.stddev(population: true, &block) }
+        it_is_float_equal(1.0)
+      end
     end
 
     with_array [Object.new] do
