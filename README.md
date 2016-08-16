@@ -57,6 +57,8 @@ Calculating -------------------------------------
             variance     84.702k (± 8.5%) i/s -    423.750k in   5.039936s
 ```
 
+![](./images/benchmark.png)
+
 ## Development
 
 After checking out the repo, run `bin/setup` to install dependencies. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
