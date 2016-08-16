@@ -1020,10 +1020,6 @@ Init_extension(void)
   rb_define_method(rb_mEnumerable, "variance", enum_variance, 0);
   rb_define_method(rb_mEnumerable, "mean_stddev", enum_mean_stddev, 0);
   rb_define_method(rb_mEnumerable, "stddev", enum_stddev, 0);
-#if 0
-  rb_define_alias(rb_mEnumerable, "average", "mean");
-  rb_define_alias(rb_mEnumerable, "var", "variance");
-#endif
 
 #ifndef HAVE_ARRAY_SUM
   rb_define_method(rb_cArray, "sum", ary_sum, -1);
