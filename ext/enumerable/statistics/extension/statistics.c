@@ -824,7 +824,7 @@ enum_sum_count(VALUE obj, VALUE init, VALUE *sum_ptr, long *count_ptr)
 }
 
 static VALUE
-enum_stat_sum(int argc, VALUE* argv, VALUE obj)
+enum_sum(int argc, VALUE* argv, VALUE obj)
 {
   VALUE sum, init;
 
@@ -890,7 +890,7 @@ enum_mean_variance_iter_i(RB_BLOCK_CALL_FUNC_ARGLIST(e, args))
 }
 
 static void
-enum_stat_mean_variance(VALUE obj, VALUE *mean_ptr, VALUE *variance_ptr)
+enum_mean_variance(VALUE obj, VALUE *mean_ptr, VALUE *variance_ptr)
 {
   struct enum_mean_variance_memo memo;
 
@@ -927,42 +927,42 @@ enum_stat_mean_variance(VALUE obj, VALUE *mean_ptr, VALUE *variance_ptr)
 }
 
 static VALUE
-enum_stat_mean_variance_m(VALUE obj)
+enum_mean_variance_m(VALUE obj)
 {
   VALUE mean, variance;
-  enum_stat_mean_variance(obj, &mean, &variance);
+  enum_mean_variance(obj, &mean, &variance);
   return rb_assoc_new(mean, variance);
 }
 
 static VALUE
-enum_stat_mean(VALUE obj)
+enum_mean(VALUE obj)
 {
   VALUE mean;
-  enum_stat_mean_variance(obj, &mean, NULL);
+  enum_mean_variance(obj, &mean, NULL);
   return mean;
 }
 
 static VALUE
-enum_stat_variance(VALUE obj)
+enum_variance(VALUE obj)
 {
   VALUE variance;
-  enum_stat_mean_variance(obj, NULL, &variance);
+  enum_mean_variance(obj, NULL, &variance);
   return variance;
 }
 
 static VALUE
-enum_stat_mean_stddev(VALUE obj)
+enum_mean_stddev(VALUE obj)
 {
   VALUE mean, variance;
-  enum_stat_mean_variance(obj, &mean, &variance);
+  enum_mean_variance(obj, &mean, &variance);
   VALUE stddev = rb_funcall(variance, idPow, 1, DBL2NUM(0.5));
   return rb_assoc_new(mean, stddev);
 }
 
 static VALUE
-enum_stat_stddev(VALUE obj)
+enum_stddev(VALUE obj)
 {
-  VALUE variance = enum_stat_variance(obj);
+  VALUE variance = enum_variance(obj);
   VALUE stddev = rb_funcall(variance, idPow, 1, DBL2NUM(0.5));
   return stddev;
 }
@@ -971,17 +971,17 @@ void
 Init_extension(void)
 {
 #ifndef HAVE_ENUM_SUM
-  rb_define_method(rb_mEnumerable, "sum", enum_stat_sum, -1);
+  rb_define_method(rb_mEnumerable, "sum", enum_sum, -1);
 #endif
 
-  rb_define_method(rb_mEnumerable, "mean_variance", enum_stat_mean_variance_m, 0);
-  rb_define_method(rb_mEnumerable, "mean", enum_stat_mean, 0);
-  rb_define_method(rb_mEnumerable, "variance", enum_stat_variance, 0);
+  rb_define_method(rb_mEnumerable, "mean_variance", enum_mean_variance_m, 0);
+  rb_define_method(rb_mEnumerable, "mean", enum_mean, 0);
+  rb_define_method(rb_mEnumerable, "variance", enum_variance, 0);
 #if 0
   rb_define_alias(rb_mEnumerable, "average", "mean");
   rb_define_alias(rb_mEnumerable, "var", "variance");
-  rb_define_method(rb_mEnumerable, "mean_stddev", enum_stat_mean_stddev, 0);
-  rb_define_method(rb_mEnumerable, "stddev", enum_stat_stddev, 0);
+  rb_define_method(rb_mEnumerable, "mean_stddev", enum_mean_stddev, 0);
+  rb_define_method(rb_mEnumerable, "stddev", enum_stddev, 0);
 #endif
 
 #ifndef HAVE_ARRAY_SUM
