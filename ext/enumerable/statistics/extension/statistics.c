@@ -85,7 +85,7 @@ struct RComplex {
 
 static VALUE half_in_rational;
 
-static ID idPow, idPLUS, idMINUS, idSTAR, idDIV;
+static ID idPow, idPLUS, idMINUS, idSTAR, idDIV, idGE;
 static ID id_eqeq_p, id_idiv, id_negate, id_to_f, id_cmp;
 static ID id_each, id_real_p, id_sum, id_population;
 
@@ -131,7 +131,6 @@ complex_new(VALUE klass, VALUE real, VALUE imag)
   return (VALUE)obj;
 }
 
-#ifndef HAVE_RB_FIX_PLUS
 static VALUE
 complex_caonicalize_new(VALUE klass, VALUE real, VALUE imag)
 {
@@ -175,6 +174,7 @@ complex_add(VALUE self, VALUE other)
   return rb_num_coerce_bin(self, other, idPLUS);
 }
 
+#ifndef HAVE_RB_FIX_PLUS
 static VALUE
 rb_fix_plus(VALUE x, VALUE y)
 {
@@ -201,6 +201,170 @@ rb_fix_plus(VALUE x, VALUE y)
   else {
     return rb_num_coerce_bin(x, y, '+');
   }
+}
+#endif
+
+#ifndef HAVE_RB_INT_PLUS
+static VALUE
+rb_int_plus(VALUE x, VALUE y)
+{
+  if (FIXNUM_P(x)) {
+    return rb_fix_plus(x, y);
+  }
+  else if (RB_TYPE_P(x, T_BIGNUM)) {
+    return rb_big_plus(x, y);
+  }
+  return rb_num_coerce_bin(x, y, '+');
+}
+#endif
+
+#ifndef HAVE_RB_FIX_MINUS
+static VALUE
+rb_fix_minus(VALUE x, VALUE y)
+{
+  if (FIXNUM_P(y)) {
+    long a, b, c;
+    VALUE r;
+
+    a = FIX2LONG(x);
+    b = FIX2LONG(y);
+    c = a - b;
+    r = LONG2NUM(c);
+
+    return r;
+  }
+  else if (RB_TYPE_P(y, T_BIGNUM)) {
+    x = rb_int2big(FIX2LONG(x));
+    return rb_big_minus(x, y);
+  }
+  else if (RB_TYPE_P(y, T_FLOAT)) {
+    return DBL2NUM((double)FIX2LONG(x) - RFLOAT_VALUE(y));
+  }
+  else {
+    return rb_num_coerce_bin(x, y, '-');
+  }
+}
+#endif
+
+#ifndef HAVE_RB_INT_MINUS
+VALUE
+rb_int_minus(VALUE x, VALUE y)
+{
+  if (FIXNUM_P(x)) {
+    return rb_fix_minus(x, y);
+  }
+  else if (RB_TYPE_P(x, T_BIGNUM)) {
+    return rb_big_minus(x, y);
+  }
+  return rb_num_coerce_bin(x, y, '-');
+}
+#endif
+
+#ifndef HAVE_RB_INTEGER_FLOAT_CMP
+static VALUE
+rb_integer_float_cmp(VALUE x, VALUE y)
+{
+  double yd = RFLOAT_VALUE(y);
+  double yi, yf;
+  VALUE rel;
+
+  if (isnan(yd))
+    return Qnil;
+  if (isinf(yd)) {
+    if (yd > 0.0) return INT2FIX(-1);
+    else return INT2FIX(1);
+  }
+  yf = modf(yd, &yi);
+  if (FIXNUM_P(x)) {
+#if SIZEOF_LONG * CHAR_BIT < DBL_MANT_DIG /* assume FLT_RADIX == 2 */
+    double xd = (double)FIX2LONG(x);
+    if (xd < yd)
+      return INT2FIX(-1);
+    if (xd > yd)
+      return INT2FIX(1);
+    return INT2FIX(0);
+#else
+    long xn, yn;
+    if (yi < FIXNUM_MIN)
+      return INT2FIX(1);
+    if (FIXNUM_MAX+1 <= yi)
+      return INT2FIX(-1);
+    xn = FIX2LONG(x);
+    yn = (long)yi;
+    if (xn < yn)
+      return INT2FIX(-1);
+    if (xn > yn)
+      return INT2FIX(1);
+    if (yf < 0.0)
+      return INT2FIX(1);
+    if (0.0 < yf)
+      return INT2FIX(-1);
+    return INT2FIX(0);
+#endif
+  }
+  y = rb_dbl2big(yi);
+  rel = rb_big_cmp(x, y);
+  if (yf == 0.0 || rel != INT2FIX(0))
+    return rel;
+  if (yf < 0.0)
+    return INT2FIX(1);
+  return INT2FIX(-1);
+}
+#endif
+
+static VALUE
+fix_ge(VALUE x, VALUE y)
+{
+  if (FIXNUM_P(y)) {
+    if (FIX2LONG(x) >= FIX2LONG(y)) return Qtrue;
+    return Qfalse;
+  }
+  else if (RB_TYPE_P(y, T_BIGNUM)) {
+    return rb_big_cmp(y, x) != INT2FIX(+1) ? Qtrue : Qfalse;
+  }
+  else if (RB_TYPE_P(y, T_FLOAT)) {
+    VALUE rel = rb_integer_float_cmp(x, y);
+    return rel == INT2FIX(1) || rel == INT2FIX(0) ? Qtrue : Qfalse;
+  }
+  else {
+    return rb_num_coerce_relop(x, y, idGE);
+  }
+}
+
+#ifndef HAVE_RB_BIG_GE
+static VALUE
+rb_big_ge(VALUE x, VALUE y)
+{
+  VALUE rel;
+  int n;
+
+  if (RB_INTEGER_TYPE_P(y)) {
+    rel = rb_big_cmp(x, y);
+  }
+  else if (RB_FLOAT_TYPE_P(y)) {
+    rel = rb_integer_float_cmp(x, y);
+  }
+  else {
+    return rb_num_coerce_relop(x, y, idGE);
+  }
+
+  if (NIL_P(rel)) return Qfalse;
+  n = FIX2INT(rel);
+  return n >= 0 ? Qtrue : Qfalse;
+}
+#endif
+
+#ifndef HAVE_RB_INT_GE
+static VALUE
+rb_int_ge(VALUE x, VALUE y)
+{
+  if (FIXNUM_P(x)) {
+    return fix_ge(x, y);
+  }
+  else if (RB_TYPE_P(x, T_BIGNUM)) {
+    return rb_big_ge(x, y);
+  }
+  return Qnil;
 }
 #endif
 
@@ -849,9 +1013,40 @@ hash_sum(VALUE hash, struct enum_sum_memo *memo)
 }
 
 static void
+int_range_sum_count(VALUE beg, VALUE end, int excl,
+                    VALUE init, VALUE *sum_ptr, long *count_ptr)
+{
+  if (excl) {
+    if (FIXNUM_P(end))
+      end = LONG2FIX(FIX2LONG(end) - 1);
+    else
+      end = rb_big_minus(end, LONG2FIX(1));
+  }
+
+  if (rb_int_ge(end, beg)) {
+    VALUE a;
+    a = rb_int_plus(rb_int_minus(end, beg), LONG2FIX(1));
+    a = f_mul(a, rb_int_plus(end, beg));
+    a = f_idiv(a, LONG2FIX(2));
+    if (sum_ptr)
+      *sum_ptr = rb_int_plus(init, a);
+    if (count_ptr)
+      *count_ptr = a;
+    return;
+  }
+
+  if (sum_ptr)
+    *sum_ptr = init;
+  if (count_ptr)
+    *count_ptr = 0;
+}
+
+static void
 enum_sum_count(VALUE obj, VALUE init, VALUE *sum_ptr, long *count_ptr)
 {
   struct enum_sum_memo memo;
+  VALUE beg, end;
+  int excl;
 
   memo.count = 0;
   memo.v = init;
@@ -862,6 +1057,14 @@ enum_sum_count(VALUE obj, VALUE init, VALUE *sum_ptr, long *count_ptr)
   if ((memo.float_value = RB_FLOAT_TYPE_P(memo.v))) {
     memo.f = RFLOAT_VALUE(memo.v);
     memo.c = 0.0;
+  }
+
+  if (RTEST(rb_range_values(obj, &beg, &end, &excl))) {
+    if (!rb_block_given_p() && !memo.float_value &&
+        RB_INTEGER_TYPE_P(beg) && RB_INTEGER_TYPE_P(end)) {
+      int_range_sum_count(beg, end, excl, memo.v, sum_ptr, count_ptr);
+      return;
+    }
   }
 
   if (RB_TYPE_P(obj, T_HASH) &&
@@ -1115,6 +1318,7 @@ Init_extension(void)
   idSTAR = '*';
   idDIV = '/';
   idPow = rb_intern("**");
+  idGE = rb_intern(">=");
   id_eqeq_p = rb_intern("==");
   id_idiv = rb_intern("div");
   id_negate = rb_intern("-@");
