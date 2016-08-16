@@ -21,9 +21,9 @@
 static inline int
 enum_stat_integer_type_p(VALUE obj)
 {
-    return (RB_FIXNUM_P(obj) ||
-	    (!RB_SPECIAL_CONST_P(obj) &&
-	     RB_BUILTIN_TYPE(obj) == RUBY_T_BIGNUM));
+    return (FIXNUM_P(obj) ||
+	    (!SPECIAL_CONST_P(obj) &&
+	     BUILTIN_TYPE(obj) == RUBY_T_BIGNUM));
 }
 #endif
 
@@ -843,8 +843,14 @@ opt_population_p(VALUE opts)
   ID kwargs = id_population;
   VALUE population = Qfalse;
 
-  if (!NIL_P(opts))
+  if (!NIL_P(opts)) {
+#ifdef HAVE_RB_GET_KWARGS
     rb_get_kwargs(opts, &kwargs, 0, 1, &population);
+#else
+    VALUE val = rb_hash_aref(opts, ID2SYM(id_population));
+    population = NIL_P(val) ? population : val;
+#endif
+  }
 
   return RTEST(population);
 }
