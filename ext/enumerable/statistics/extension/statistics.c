@@ -605,7 +605,7 @@ calculate_and_set_mean(VALUE *mean_ptr, VALUE sum, long const n)
 }
 
 static void
-ary_mean_variance(VALUE ary, VALUE *mean_ptr, VALUE *variance_ptr)
+ary_mean_variance(VALUE ary, VALUE *mean_ptr, VALUE *variance_ptr, size_t ddof)
 {
   long i;
   size_t n = 0;
@@ -669,14 +669,14 @@ ary_mean_variance(VALUE ary, VALUE *mean_ptr, VALUE *variance_ptr)
 
   SET_MEAN(DBL2NUM(f / n));
   if (n >= 2)
-    SET_VARIANCE(DBL2NUM(m2 / (n - 1)));
+    SET_VARIANCE(DBL2NUM(m2 / (n - ddof)));
 }
 
 static VALUE
 ary_mean_variance_m(VALUE ary)
 {
   VALUE mean, variance;
-  ary_mean_variance(ary, &mean, &variance);
+  ary_mean_variance(ary, &mean, &variance, 1);
   return rb_assoc_new(mean, variance);
 }
 
@@ -684,7 +684,7 @@ static VALUE
 ary_mean(VALUE ary)
 {
   VALUE mean;
-  ary_mean_variance(ary, &mean, NULL);
+  ary_mean_variance(ary, &mean, NULL, 1);
   return mean;
 }
 
@@ -692,7 +692,7 @@ static VALUE
 ary_variance(VALUE ary)
 {
   VALUE variance;
-  ary_mean_variance(ary, NULL, &variance);
+  ary_mean_variance(ary, NULL, &variance, 1);
   return variance;
 }
 
@@ -903,7 +903,7 @@ enum_mean_variance_iter_i(RB_BLOCK_CALL_FUNC_ARGLIST(e, args))
 }
 
 static void
-enum_mean_variance(VALUE obj, VALUE *mean_ptr, VALUE *variance_ptr)
+enum_mean_variance(VALUE obj, VALUE *mean_ptr, VALUE *variance_ptr, size_t ddof)
 {
   struct enum_mean_variance_memo memo;
 
@@ -935,7 +935,7 @@ enum_mean_variance(VALUE obj, VALUE *mean_ptr, VALUE *variance_ptr)
     SET_MEAN(DBL2NUM(memo.f));
   else {
     SET_MEAN(DBL2NUM(memo.f / memo.n));
-    SET_VARIANCE(DBL2NUM(memo.m2 / (memo.n - 1)));
+    SET_VARIANCE(DBL2NUM(memo.m2 / (memo.n - ddof)));
   }
 }
 
@@ -943,7 +943,7 @@ static VALUE
 enum_mean_variance_m(VALUE obj)
 {
   VALUE mean, variance;
-  enum_mean_variance(obj, &mean, &variance);
+  enum_mean_variance(obj, &mean, &variance, 1);
   return rb_assoc_new(mean, variance);
 }
 
@@ -951,7 +951,7 @@ static VALUE
 enum_mean(VALUE obj)
 {
   VALUE mean;
-  enum_mean_variance(obj, &mean, NULL);
+  enum_mean_variance(obj, &mean, NULL, 1);
   return mean;
 }
 
@@ -959,7 +959,7 @@ static VALUE
 enum_variance(VALUE obj)
 {
   VALUE variance;
-  enum_mean_variance(obj, NULL, &variance);
+  enum_mean_variance(obj, NULL, &variance, 1);
   return variance;
 }
 
@@ -978,7 +978,7 @@ static VALUE
 enum_mean_stddev(VALUE obj)
 {
   VALUE mean, variance;
-  enum_mean_variance(obj, &mean, &variance);
+  enum_mean_variance(obj, &mean, &variance, 1);
   VALUE stddev = sqrt_value(variance);
   return rb_assoc_new(mean, stddev);
 }
@@ -995,7 +995,7 @@ static VALUE
 ary_mean_stddev(VALUE ary)
 {
   VALUE mean, variance;
-  ary_mean_variance(ary, &mean, &variance);
+  ary_mean_variance(ary, &mean, &variance, 1);
   VALUE stddev = sqrt_value(variance);
   return rb_assoc_new(mean, stddev);
 }
