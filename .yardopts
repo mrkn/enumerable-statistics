@@ -1,0 +1,3 @@
+--markup markdown
+--template mathjax
+--template-path yard/templates
