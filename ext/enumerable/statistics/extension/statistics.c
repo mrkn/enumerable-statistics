@@ -1115,19 +1115,18 @@ struct enum_mean_variance_memo {
   double m, m2, f, c;
 };
 
-static VALUE
-enum_mean_variance_iter_i(RB_BLOCK_CALL_FUNC_ARGLIST(e, args))
+static void
+mean_variance_iter(VALUE e, struct enum_mean_variance_memo *memo)
 {
+  int const unused = (assert(memo != NULL), 0);
+
   double x, delta, y, t;
 
-  struct enum_mean_variance_memo *memo = (struct enum_mean_variance_memo *)args;
   long n = memo->n;
   double m = memo->m;
   double m2 = memo->m2;
   double f = memo->f;
   double c = memo->c;
-
-  ENUM_WANT_SVALUE();
 
   if (memo->block_given)
     e = rb_yield(e);
@@ -1158,8 +1157,32 @@ enum_mean_variance_iter_i(RB_BLOCK_CALL_FUNC_ARGLIST(e, args))
   memo->m2 = m2;
   memo->f = f;
   memo->c = c;
+  (void)unused;
+}
 
+static VALUE
+enum_mean_variance_iter_i(RB_BLOCK_CALL_FUNC_ARGLIST(e, args))
+{
+  struct enum_mean_variance_memo *memo = (struct enum_mean_variance_memo *)args;
+  ENUM_WANT_SVALUE();
+  mean_variance_iter(e, (struct enum_sum_memo *) args);
   return Qnil;
+}
+
+static int
+hash_mean_variance_i(VALUE key, VALUE value, VALUE arg)
+{
+  mean_variance_iter(rb_assoc_new(key, value), (struct enum_mean_variance_memo *) arg);
+  return ST_CONTINUE;
+}
+
+static void
+hash_mean_variance(VALUE hash, struct enum_mean_variance_memo *memo)
+{
+  assert(RB_TYPE_P(hash, T_HASH));
+  assert(memo != NULL);
+
+  rb_hash_foreach(hash, hash_mean_variance_i, (VALUE)memo);
 }
 
 static void
@@ -1187,7 +1210,11 @@ enum_mean_variance(VALUE obj, VALUE *mean_ptr, VALUE *variance_ptr, size_t ddof)
   memo.f = 0.0;
   memo.c = 0.0;
 
-  rb_block_call(obj, id_each, 0, 0, enum_mean_variance_iter_i, (VALUE)&memo);
+  if (RB_TYPE_P(obj, T_HASH) &&
+      rb_method_basic_definition_p(CLASS_OF(obj), id_each))
+    hash_mean_variance(obj, &memo);
+  else
+    rb_block_call(obj, id_each, 0, 0, enum_mean_variance_iter_i, (VALUE)&memo);
 
   if (memo.n == 0)
     return;
