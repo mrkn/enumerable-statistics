@@ -2,9 +2,7 @@
 
 [![Build Status](https://travis-ci.org/mrkn/enumerable-statistics.svg?branch=master)](https://travis-ci.org/mrkn/enumerable-statistics)
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/enumerable/statistics`. To experiment with that code, run `bin/console` for an interactive prompt.
-
-TODO: Delete this and the text above, and describe your gem
+Enumerable::Statistics provides some methods to calculate statistical summary in arrays and enumerables.
 
 ## Installation
 
@@ -24,7 +22,28 @@ Or install it yourself as:
 
 ## Usage
 
-TODO: Write usage instructions here
+You should load this library by the following line in your script at first.
+
+```ruby
+require 'enumerable/statistics'
+```
+
+The following methods are supplied by this library:
+
+- `Array#mean`, `Enumerable#mean`
+  - Calculates a mean of values in an array or an enumerable
+- `Array#variance`, `Enumerable#variance`
+  - Calculates a variance of values in an array or an enumerable
+- `Array#stddev`, `Enumerable#stddev`
+  - Calculates a standard deviation of values in an array or an enumerable
+- `Array#mean_variance`, `Enumerable#mean_variance`
+  - Calculates a mean and a variance simultaneously
+- `Array#mean_stddev`, `Enumerable#mean_stddev`
+  - Calculates a mean and a standard deviation simultaneously
+
+Moreover, for Ruby < 2.4, `Array#sum` and `Enumerable#sum` are provided.
+
+All methods scan a collection once to calculate statistics and preserve precision as possible.
 
 ## Performance
 
@@ -69,5 +88,5 @@ To install this gem onto your local machine, run `bundle exec rake install`. To 
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/enumerable-statistics.
+Bug reports and pull requests are welcome on GitHub at https://github.com/mrkn/enumerable-statistics.
 
