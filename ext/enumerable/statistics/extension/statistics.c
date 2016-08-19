@@ -642,6 +642,18 @@ rb_rational_plus(VALUE self, VALUE other)
 }
 #endif
 
+/* call-seq:
+ *    ary.sum
+ *
+ * Calculate the sum of the values in `ary`.
+ * This method utilizes
+ * [Kahan summation algorithm](https://en.wikipedia.org/wiki/Kahan_summation_algorithm)
+ * to compensate the result precision when the `ary` includes Float values.
+ *
+ * Note that This library does not redefine `sum` method introduced in Ruby 2.4.
+ *
+ * @return [Number] A summation value
+ */
 static VALUE
 ary_sum(int argc, VALUE* argv, VALUE ary)
 {
@@ -855,6 +867,22 @@ opt_population_p(VALUE opts)
   return RTEST(population);
 }
 
+/* call-seq:
+ *    eary.mean_variance(population: false)
+ *
+ * Calculate a mean and a variance of the values in `ary`.
+ * The first element of the result array is the mean, and the second is the variance.
+ *
+ * When the `population:` keyword parameter is `true`,
+ * the variance is calculated as a population variance (divided by $n$).
+ * The default `population:` keyword parameter is `false`;
+ * this means the variance is a sample variance (divided by $n-1$).
+ *
+ * This method scan values in `ary` only once,
+ * and does not cache the values on memory.
+ *
+ * @return (mean, variance) Two element array consists of mean and variance values
+ */
 static VALUE
 ary_mean_variance_m(int argc, VALUE* argv, VALUE ary)
 {
@@ -869,6 +897,16 @@ ary_mean_variance_m(int argc, VALUE* argv, VALUE ary)
   return rb_assoc_new(mean, variance);
 }
 
+/* call-seq:
+ *    ary.mean
+ *
+ * Calculate a mean of the values in `ary`.
+ * This method utilizes
+ * [Kahan summation algorithm](https://en.wikipedia.org/wiki/Kahan_summation_algorithm)
+ * to compensate the result precision when the `enum` includes Float values.
+ *
+ * @return [Number] A mean value
+ */
 static VALUE
 ary_mean(VALUE ary)
 {
@@ -877,6 +915,20 @@ ary_mean(VALUE ary)
   return mean;
 }
 
+/* call-seq:
+ *    ary.variance(population: false)
+ *
+ * Calculate a variance of the values in `ary`.
+ * This method scan values in `ary` only once,
+ * and does not cache the values on memory.
+ *
+ * When the `population:` keyword parameter is `true`,
+ * the variance is calculated as a population variance (divided by $n$).
+ * The default `population:` keyword parameter is `false`;
+ * this means the variance is a sample variance (divided by $n-1$).
+ *
+ * @return [Number] A variance value
+ */
 static VALUE
 ary_variance(int argc, VALUE* argv, VALUE ary)
 {
@@ -1096,6 +1148,18 @@ enum_sum_count(VALUE obj, VALUE init, VALUE *sum_ptr, long *count_ptr)
     *count_ptr = memo.count;
 }
 
+/* call-seq:
+ *    enum.sum
+ *
+ * Calculate the sum of the values in `enum`.
+ * This method utilizes
+ * [Kahan summation algorithm](https://en.wikipedia.org/wiki/Kahan_summation_algorithm)
+ * to compensate the result precision when the `enum` includes Float values.
+ *
+ * Note that This library does not redefine `sum` method introduced in Ruby 2.4.
+ *
+ * @return [Number] A summation value
+ */
 static VALUE
 enum_sum(int argc, VALUE* argv, VALUE obj)
 {
@@ -1228,6 +1292,22 @@ enum_mean_variance(VALUE obj, VALUE *mean_ptr, VALUE *variance_ptr, size_t ddof)
   }
 }
 
+/* call-seq:
+ *    enum.mean_variance(population: false)
+ *
+ * Calculate a mean and a variance of the values in `enum`.
+ * The first element of the result array is the mean, and the second is the variance.
+ *
+ * When the `population:` keyword parameter is `true`,
+ * the variance is calculated as a population variance (divided by $n$).
+ * The default `population:` keyword parameter is `false`;
+ * this means the variance is a sample variance (divided by $n-1$).
+ *
+ * This method scan values in `enum` only once,
+ * and does not cache the values on memory.
+ *
+ * @return (mean, variance) Two element array consists of mean and variance values
+ */
 static VALUE
 enum_mean_variance_m(int argc, VALUE* argv, VALUE obj)
 {
@@ -1242,6 +1322,16 @@ enum_mean_variance_m(int argc, VALUE* argv, VALUE obj)
   return rb_assoc_new(mean, variance);
 }
 
+/* call-seq:
+ *    enum.mean
+ *
+ * Calculate a mean of the values in `enum`.
+ * This method utilizes
+ * [Kahan summation algorithm](https://en.wikipedia.org/wiki/Kahan_summation_algorithm)
+ * to compensate the result precision when the `enum` includes Float values.
+ *
+ * @return [Number] A mean value
+ */
 static VALUE
 enum_mean(VALUE obj)
 {
@@ -1250,6 +1340,20 @@ enum_mean(VALUE obj)
   return mean;
 }
 
+/* call-seq:
+ *    enum.variance(population: false)
+ *
+ * Calculate a variance of the values in `enum`.
+ * This method scan values in `enum` only once,
+ * and does not cache the values on memory.
+ *
+ * When the `population:` keyword parameter is `true`,
+ * the variance is calculated as a population variance (divided by $n$).
+ * The default `population:` keyword parameter is `false`;
+ * this means the variance is a sample variance (divided by $n-1$).
+ *
+ * @return [Number] A variance value
+ */
 static VALUE
 enum_variance(int argc, VALUE* argv, VALUE obj)
 {
@@ -1275,6 +1379,24 @@ sqrt_value(VALUE x)
   return rb_funcall(x, idPow, 1, half_in_rational);
 }
 
+/* call-seq:
+ *    enum.mean_stddev(population: false)
+ *
+ * Calculate a mean and a standard deviation of the values in `enum`.
+ * The first element of the result array is the mean,
+ * and the second is the standard deviation.
+ *
+ * This method is equivalent to:
+ *
+ * ```ruby
+ * def mean_stddev(population: false)
+ *   m, v = mean_variance(population: population)
+ *   [m, Math.sqrt(v)]
+ * end
+ * ```
+ *
+ * @return (mean, stddev)
+ */
 static VALUE
 enum_mean_stddev(int argc, VALUE* argv, VALUE obj)
 {
@@ -1290,6 +1412,19 @@ enum_mean_stddev(int argc, VALUE* argv, VALUE obj)
   return rb_assoc_new(mean, stddev);
 }
 
+/* call-seq:
+ *    enum.stddev(population: false)
+ *
+ * Calculate a standard deviation of the values in `enum`.
+ *
+ * This method is equivalent to:
+ *
+ * ```ruby
+ * Math.sqrt(enum.variance(population: population))
+ * ```
+ *
+ * @return [Number] A standard deviation value
+ */
 static VALUE
 enum_stddev(int argc, VALUE* argv, VALUE obj)
 {
@@ -1298,6 +1433,24 @@ enum_stddev(int argc, VALUE* argv, VALUE obj)
   return stddev;
 }
 
+/* call-seq:
+ *    ary.mean_stddev(population: false)
+ *
+ * Calculate a mean and a standard deviation of the values in `ary`.
+ * The first element of the result array is the mean,
+ * and the second is the standard deviation.
+ *
+ * This method is equivalent to:
+ *
+ * ```ruby
+ * def mean_stddev(population: false)
+ *   m, v = mean_variance(population: population)
+ *   [m, Math.sqrt(v)]
+ * end
+ * ```
+ *
+ * @return (mean, stddev)
+ */
 static VALUE
 ary_mean_stddev(int argc, VALUE* argv, VALUE ary)
 {
@@ -1313,6 +1466,19 @@ ary_mean_stddev(int argc, VALUE* argv, VALUE ary)
   return rb_assoc_new(mean, stddev);
 }
 
+/* call-seq:
+ *    ary.stddev(population: false)
+ *
+ * Calculate a standard deviation of the values in `ary`.
+ *
+ * This method is equivalent to:
+ *
+ * ```ruby
+ * Math.sqrt(ary.variance(population: population))
+ * ```
+ *
+ * @return [Number] A standard deviation value
+ */
 static VALUE
 ary_stddev(int argc, VALUE* argv, VALUE ary)
 {
