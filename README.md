@@ -34,11 +34,11 @@ The following methods are supplied by this library:
   - Calculates a mean of values in an array or an enumerable
 - `Array#variance`, `Enumerable#variance`
   - Calculates a variance of values in an array or an enumerable
-- `Array#stddev`, `Enumerable#stddev`
+- `Array#stdev`, `Enumerable#stdev`
   - Calculates a standard deviation of values in an array or an enumerable
 - `Array#mean_variance`, `Enumerable#mean_variance`
   - Calculates a mean and a variance simultaneously
-- `Array#mean_stddev`, `Enumerable#mean_stddev`
+- `Array#mean_stdev`, `Enumerable#mean_stdev`
   - Calculates a mean and a standard deviation simultaneously
 
 Moreover, for Ruby < 2.4, `Array#sum` and `Enumerable#sum` are provided.

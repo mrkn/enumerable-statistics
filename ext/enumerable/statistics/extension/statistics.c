@@ -1380,7 +1380,7 @@ sqrt_value(VALUE x)
 }
 
 /* call-seq:
- *    enum.mean_stddev(population: false)
+ *    enum.mean_stdev(population: false)
  *
  * Calculate a mean and a standard deviation of the values in `enum`.
  * The first element of the result array is the mean,
@@ -1389,16 +1389,16 @@ sqrt_value(VALUE x)
  * This method is equivalent to:
  *
  * ```ruby
- * def mean_stddev(population: false)
+ * def mean_stdev(population: false)
  *   m, v = mean_variance(population: population)
  *   [m, Math.sqrt(v)]
  * end
  * ```
  *
- * @return (mean, stddev)
+ * @return (mean, stdev)
  */
 static VALUE
-enum_mean_stddev(int argc, VALUE* argv, VALUE obj)
+enum_mean_stdev(int argc, VALUE* argv, VALUE obj)
 {
   VALUE opts, mean, variance;
   size_t ddof = 1;
@@ -1408,12 +1408,12 @@ enum_mean_stddev(int argc, VALUE* argv, VALUE obj)
     ddof = 0;
 
   enum_mean_variance(obj, &mean, &variance, ddof);
-  VALUE stddev = sqrt_value(variance);
-  return rb_assoc_new(mean, stddev);
+  VALUE stdev = sqrt_value(variance);
+  return rb_assoc_new(mean, stdev);
 }
 
 /* call-seq:
- *    enum.stddev(population: false)
+ *    enum.stdev(population: false)
  *
  * Calculate a standard deviation of the values in `enum`.
  *
@@ -1426,15 +1426,15 @@ enum_mean_stddev(int argc, VALUE* argv, VALUE obj)
  * @return [Number] A standard deviation value
  */
 static VALUE
-enum_stddev(int argc, VALUE* argv, VALUE obj)
+enum_stdev(int argc, VALUE* argv, VALUE obj)
 {
   VALUE variance = enum_variance(argc, argv, obj);
-  VALUE stddev = sqrt_value(variance);
-  return stddev;
+  VALUE stdev = sqrt_value(variance);
+  return stdev;
 }
 
 /* call-seq:
- *    ary.mean_stddev(population: false)
+ *    ary.mean_stdev(population: false)
  *
  * Calculate a mean and a standard deviation of the values in `ary`.
  * The first element of the result array is the mean,
@@ -1443,16 +1443,16 @@ enum_stddev(int argc, VALUE* argv, VALUE obj)
  * This method is equivalent to:
  *
  * ```ruby
- * def mean_stddev(population: false)
+ * def mean_stdev(population: false)
  *   m, v = mean_variance(population: population)
  *   [m, Math.sqrt(v)]
  * end
  * ```
  *
- * @return (mean, stddev)
+ * @return (mean, stdev)
  */
 static VALUE
-ary_mean_stddev(int argc, VALUE* argv, VALUE ary)
+ary_mean_stdev(int argc, VALUE* argv, VALUE ary)
 {
   VALUE opts, mean, variance;
   size_t ddof = 1;
@@ -1462,12 +1462,12 @@ ary_mean_stddev(int argc, VALUE* argv, VALUE ary)
     ddof = 0;
 
   ary_mean_variance(ary, &mean, &variance, ddof);
-  VALUE stddev = sqrt_value(variance);
-  return rb_assoc_new(mean, stddev);
+  VALUE stdev = sqrt_value(variance);
+  return rb_assoc_new(mean, stdev);
 }
 
 /* call-seq:
- *    ary.stddev(population: false)
+ *    ary.stdev(population: false)
  *
  * Calculate a standard deviation of the values in `ary`.
  *
@@ -1480,11 +1480,11 @@ ary_mean_stddev(int argc, VALUE* argv, VALUE ary)
  * @return [Number] A standard deviation value
  */
 static VALUE
-ary_stddev(int argc, VALUE* argv, VALUE ary)
+ary_stdev(int argc, VALUE* argv, VALUE ary)
 {
   VALUE variance = ary_variance(argc, argv, ary);
-  VALUE stddev = sqrt_value(variance);
-  return stddev;
+  VALUE stdev = sqrt_value(variance);
+  return stdev;
 }
 
 void
@@ -1497,8 +1497,8 @@ Init_extension(void)
   rb_define_method(rb_mEnumerable, "mean_variance", enum_mean_variance_m, -1);
   rb_define_method(rb_mEnumerable, "mean", enum_mean, 0);
   rb_define_method(rb_mEnumerable, "variance", enum_variance, -1);
-  rb_define_method(rb_mEnumerable, "mean_stddev", enum_mean_stddev, -1);
-  rb_define_method(rb_mEnumerable, "stddev", enum_stddev, -1);
+  rb_define_method(rb_mEnumerable, "mean_stdev", enum_mean_stdev, -1);
+  rb_define_method(rb_mEnumerable, "stdev", enum_stdev, -1);
 
 #ifndef HAVE_ARRAY_SUM
   rb_define_method(rb_cArray, "sum", ary_sum, -1);
@@ -1506,8 +1506,8 @@ Init_extension(void)
   rb_define_method(rb_cArray, "mean_variance", ary_mean_variance_m, -1);
   rb_define_method(rb_cArray, "mean", ary_mean, 0);
   rb_define_method(rb_cArray, "variance", ary_variance, -1);
-  rb_define_method(rb_cArray, "mean_stddev", ary_mean_stddev, -1);
-  rb_define_method(rb_cArray, "stddev", ary_stddev, -1);
+  rb_define_method(rb_cArray, "mean_stdev", ary_mean_stdev, -1);
+  rb_define_method(rb_cArray, "stdev", ary_stdev, -1);
 
   half_in_rational = nurat_s_new_internal(rb_cRational, INT2FIX(1), INT2FIX(2));
   rb_gc_register_mark_object(half_in_rational);

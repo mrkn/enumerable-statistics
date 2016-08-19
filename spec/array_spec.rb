@@ -386,11 +386,11 @@ RSpec.describe Array do
     end
   end
 
-  describe '#mean_stddev' do
+  describe '#mean_stdev' do
     let(:ary) { [] }
     let(:block) { nil }
 
-    subject(:mean_stddev) { ary.mean_stddev(&block) }
+    subject(:mean_stdev) { ary.mean_stdev(&block) }
 
     with_array [] do
       specify do
@@ -401,7 +401,7 @@ RSpec.describe Array do
       context 'with a conversion block' do
         it 'does not call the block' do
           expect { |b|
-            ary.mean_stddev(&b)
+            ary.mean_stdev(&b)
           }.not_to yield_control
         end
       end
@@ -423,7 +423,7 @@ RSpec.describe Array do
 
     with_array [3.0, 5.0] do
       context 'with population: nil' do
-        subject(:mean_stddev) { ary.mean_stddev(population: nil, &block) }
+        subject(:mean_stdev) { ary.mean_stdev(population: nil, &block) }
         specify do
           expect(subject[0]).to eq(4.0)
           expect(subject[1]).to eq(Math.sqrt(2.0))
@@ -431,7 +431,7 @@ RSpec.describe Array do
       end
 
       context 'with population: false' do
-        subject(:mean_stddev) { ary.mean_stddev(population: false, &block) }
+        subject(:mean_stdev) { ary.mean_stdev(population: false, &block) }
         specify do
           expect(subject[0]).to eq(4.0)
           expect(subject[1]).to eq(Math.sqrt(2.0))
@@ -439,7 +439,7 @@ RSpec.describe Array do
       end
 
       context 'with population: true' do
-        subject(:mean_stddev) { ary.mean_stddev(population: true, &block) }
+        subject(:mean_stdev) { ary.mean_stdev(population: true, &block) }
         specify do
           expect(subject[0]).to eq(4.0)
           expect(subject[1]).to eq(1.0)
@@ -481,11 +481,11 @@ RSpec.describe Array do
     end
   end
 
-  describe '#stddev' do
+  describe '#stdev' do
     let(:ary) { [] }
     let(:block) { nil }
 
-    subject(:stddev) { ary.stddev(&block) }
+    subject(:stdev) { ary.stdev(&block) }
 
     with_array [] do
       it_is_float_nan
@@ -495,7 +495,7 @@ RSpec.describe Array do
 
         it 'does not call the block' do
           expect { |b|
-            ary.stddev(&b)
+            ary.stdev(&b)
           }.not_to yield_control
         end
       end
@@ -517,17 +517,17 @@ RSpec.describe Array do
       it_is_float_equal(Math.sqrt(2.0))
 
       context 'with population: nil' do
-        subject(:stddev) { ary.stddev(population: nil, &block) }
+        subject(:stdev) { ary.stdev(population: nil, &block) }
         it_is_float_equal(Math.sqrt(2.0))
       end
 
       context 'with population: false' do
-        subject(:stddev) { ary.stddev(population: false, &block) }
+        subject(:stdev) { ary.stdev(population: false, &block) }
         it_is_float_equal(Math.sqrt(2.0))
       end
 
       context 'with population: true' do
-        subject(:stddev) { ary.stddev(population: true, &block) }
+        subject(:stdev) { ary.stdev(population: true, &block) }
         it_is_float_equal(1.0)
       end
     end

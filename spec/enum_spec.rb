@@ -381,8 +381,8 @@ RSpec.describe Enumerable do
     end
   end
 
-  describe '#stddev' do
-    subject(:stddev) { enum.stddev(&block) }
+  describe '#stdev' do
+    subject(:stdev) { enum.stdev(&block) }
     let(:enum) { [].to_enum }
     let(:block) { nil }
 
@@ -394,7 +394,7 @@ RSpec.describe Enumerable do
 
         it 'does not call the block' do
           expect { |b|
-            enum.stddev(&b)
+            enum.stdev(&b)
           }.not_to yield_control
         end
       end
@@ -412,17 +412,17 @@ RSpec.describe Enumerable do
       it_is_float_equal(Math.sqrt(2.0))
 
       context 'with population: nil' do
-        subject(:stddev) { enum.stddev(population: nil, &block) }
+        subject(:stdev) { enum.stdev(population: nil, &block) }
         it_is_float_equal(Math.sqrt(2.0))
       end
 
       context 'with population: false' do
-        subject(:stddev) { enum.stddev(population: false, &block) }
+        subject(:stdev) { enum.stdev(population: false, &block) }
         it_is_float_equal(Math.sqrt(2.0))
       end
 
       context 'with population: true' do
-        subject(:stddev) { enum.stddev(population: true, &block) }
+        subject(:stdev) { enum.stdev(population: true, &block) }
         it_is_float_equal(1.0)
       end
     end
@@ -471,8 +471,8 @@ RSpec.describe Enumerable do
     end
   end
 
-  describe '#mean_stddev' do
-    subject(:mean_stddev) { enum.mean_stddev(&block) }
+  describe '#mean_stdev' do
+    subject(:mean_stdev) { enum.mean_stdev(&block) }
     let(:enum) { [].each }
     let(:block) { nil }
 
@@ -486,7 +486,7 @@ RSpec.describe Enumerable do
       context 'with a conversion block' do
         it 'does not call the block' do
           expect { |b|
-            enum.mean_stddev(&b)
+            enum.mean_stdev(&b)
           }.not_to yield_control
         end
       end
@@ -508,7 +508,7 @@ RSpec.describe Enumerable do
 
     with_enum [3.0, 5.0] do
       context 'with population: nil' do
-        subject(:mean_stddev) { enum.mean_stddev(population: nil, &block) }
+        subject(:mean_stdev) { enum.mean_stdev(population: nil, &block) }
         specify do
           expect(subject[0]).to eq(4.0)
           expect(subject[1]).to eq(Math.sqrt(2.0))
@@ -516,7 +516,7 @@ RSpec.describe Enumerable do
       end
 
       context 'with population: false' do
-        subject(:mean_stddev) { enum.mean_stddev(population: false, &block) }
+        subject(:mean_stdev) { enum.mean_stdev(population: false, &block) }
         specify do
           expect(subject[0]).to eq(4.0)
           expect(subject[1]).to eq(Math.sqrt(2.0))
@@ -524,7 +524,7 @@ RSpec.describe Enumerable do
       end
 
       context 'with population: true' do
-        subject(:mean_stddev) { enum.mean_stddev(population: true, &block) }
+        subject(:mean_stdev) { enum.mean_stdev(population: true, &block) }
         specify do
           expect(subject[0]).to eq(4.0)
           expect(subject[1]).to eq(1.0)
