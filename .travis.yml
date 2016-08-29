@@ -15,5 +15,5 @@ install:
   - bundle install
 
 script:
-  - bundle exec rake clobber compile
+  - bundle exec rake --trace clobber compile
   - bundle exec rake spec
