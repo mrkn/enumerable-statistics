@@ -1229,7 +1229,7 @@ enum_mean_variance_iter_i(RB_BLOCK_CALL_FUNC_ARGLIST(e, args))
 {
   struct enum_mean_variance_memo *memo = (struct enum_mean_variance_memo *)args;
   ENUM_WANT_SVALUE();
-  mean_variance_iter(e, (struct enum_sum_memo *) args);
+  mean_variance_iter(e, (struct enum_mean_variance_memo *) args);
   return Qnil;
 }
 
