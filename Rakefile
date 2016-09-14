@@ -6,6 +6,8 @@ task :default => :spec
 
 Rake::ExtensionTask.new('enumerable/statistics/extension')
 
+directory 'lib/enumerable/statistics'
+
 RSpec::Core::RakeTask.new(:spec)
 
 task :bench do
