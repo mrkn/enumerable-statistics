@@ -1413,6 +1413,124 @@ enum_stdev(int argc, VALUE* argv, VALUE obj)
   return stdev;
 }
 
+#if SIZEOF_SIZE_T == SIZEOF_LONG
+static inline size_t
+random_usize_limited(VALUE rnd, size_t max)
+{
+  return (size_t)rb_random_ulong_limited(rnd, max);
+}
+#else
+static inline size_t
+random_usize_limited(VALUE rnd, size_t max)
+{
+  if (max <= ULONG_MAX) {
+    return (size_t)rb_random_ulong_limited(rnd, (unsigned long)max);
+  }
+  else {
+    VALUE num = rb_random_int(rnd, SIZET2NUM(max));
+    return NUM2SIZET(num);
+  }
+}
+#endif
+
+struct sample_single_memo {
+  size_t k;
+  VALUE sample;
+  VALUE random;
+};
+
+static VALUE
+enum_sample_single_i(RB_BLOCK_CALL_FUNC_ARGLIST(e, data))
+{
+  struct sample_single_memo *memo = (struct sample_single_memo *)data;
+  ENUM_WANT_SVALUE();
+
+  if (++memo->k <= 1) {
+    memo->sample = e;
+  }
+  else {
+    size_t j = random_usize_limited(memo->random, memo->k - 1);
+    if (j == 1) {
+      memo->sample = e;
+    }
+  }
+
+  return Qnil;
+}
+
+static VALUE
+enum_sample_single(VALUE obj, VALUE random)
+{
+  struct sample_single_memo memo;
+
+  memo.k = 0;
+  memo.sample = Qundef;
+  memo.random = random;
+
+  rb_block_call(obj, id_each, 0, 0, enum_sample_single_i, (VALUE)&memo);
+
+  return memo.sample;
+}
+
+static VALUE
+enum_sample_multiple_unweighted(VALUE obj, long size, int replace_p)
+{
+  assert(size > 1);
+
+  return Qnil;
+}
+
+/* call-seq:
+ *    enum.sample(n=1, random: Random, replace: false)
+ */
+static VALUE
+enum_sample(int argc, VALUE *argv, VALUE obj)
+{
+  VALUE size_v, random_v, replace_v, weights_v, opts;
+  long size;
+  int replace_p;
+
+  random_v = rb_cRandom;
+  replace_v = Qundef;
+  weights_v = Qundef;
+
+  if (argc == 0) goto single;
+
+  rb_scan_args(argc, argv, "01:", &size_v, &opts);
+  size = NIL_P(size_v) ? 1 : NUM2LONG(size_v);
+
+  if (size == 1 && NIL_P(opts)) {
+    goto single;
+  }
+
+  if (!NIL_P(opts)) {
+    static ID keywords[3];
+    VALUE kwargs[3];
+    if (!keywords[0]) {
+      keywords[0] = rb_intern("random");
+      keywords[1] = rb_intern("replace");
+      /* keywords[2] = rb_intern("weights"); */
+    }
+    rb_get_kwargs(opts, keywords, 0, 2, kwargs);
+    random_v = kwargs[0];
+    replace_v = kwargs[1];
+    /* weights_v = kwargs[2]; */
+  }
+  if (random_v == Qundef) {
+    random_v = rb_cRandom;
+  }
+
+  if (size == 1) {
+single:
+    return enum_sample_single(obj, random_v);
+  }
+
+  replace_p = (replace_v == Qundef) ? 1 : RTEST(replace_v);
+
+  return enum_sample_unweighted(obj, NUM2LONG(size), replace_p);
+}
+
+
 /* call-seq:
  *    ary.mean_stdev(population: false)
  *
@@ -1479,6 +1597,7 @@ Init_extension(void)
   rb_define_method(rb_mEnumerable, "variance", enum_variance, -1);
   rb_define_method(rb_mEnumerable, "mean_stdev", enum_mean_stdev, -1);
   rb_define_method(rb_mEnumerable, "stdev", enum_stdev, -1);
+  rb_define_method(rb_mEnumerable, "sample", enum_sample, -1);
 
 #ifndef HAVE_ARRAY_SUM
   rb_define_method(rb_cArray, "sum", ary_sum, -1);
