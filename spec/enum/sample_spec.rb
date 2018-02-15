@@ -15,7 +15,7 @@ RSpec.describe Enumerable, '#sample' do
             result = enum.sample
             expect(result).to be_an(Integer)
             other_results = Array.new(100) { enum.sample }
-            expect(other_results).not_to be_all(eq result)
+            expect(other_results).not_to be_all {|i| i == result }
           end
         end
       end
@@ -26,7 +26,7 @@ RSpec.describe Enumerable, '#sample' do
           result = enum.sample(random: random)
           expect(result).to be_an(Integer)
           other_results = Array.new(100) { enum.sample(random: save_random.dup) }
-          expect(other_results).to be_all(eq result)
+          expect(other_results).to be_all {|i| i == result }
         end
       end
     end
@@ -38,7 +38,7 @@ RSpec.describe Enumerable, '#sample' do
             result = enum.sample(1)
             expect(result).to be_an(Integer)
             other_results = Array.new(100) { enum.sample(1) }
-            expect(other_results).not_to be_all(eq result)
+            expect(other_results).not_to be_all {|i| i == result }
           end
         end
       end
@@ -49,7 +49,7 @@ RSpec.describe Enumerable, '#sample' do
           result = enum.sample(1, random: random)
           expect(result).to be_an(Integer)
           other_results = Array.new(100) { enum.sample(1, random: save_random.dup) }
-          expect(other_results).to be_all(eq result)
+          expect(other_results).to be_all {|i| i == result }
         end
       end
     end
@@ -63,8 +63,9 @@ RSpec.describe Enumerable, '#sample' do
             result = enum.sample(n)
             expect(result).to be_an(Array)
             expect(result.length).to eq(n)
+            expect(result.uniq.length).to eq(n)
             other_results = Array.new(100) { enum.sample(n) }
-            expect(other_results).not_to be_all(eq result)
+	    expect(other_results).not_to be_all {|i| i == result }
           end
         end
 
@@ -76,8 +77,9 @@ RSpec.describe Enumerable, '#sample' do
             result = enum.sample(n, random: random)
             expect(result).to be_an(Array)
             expect(result.length).to eq(n)
-            other_results = Array.new(100) { enum.sample(n, random: random) }
-            expect(other_results).to be_all(eq result)
+            expect(result.uniq.length).to eq(n)
+            other_results = Array.new(100) { enum.sample(n, random: save_random.dup) }
+	    expect(other_results).to be_all {|i| i == result }
           end
         end
       end

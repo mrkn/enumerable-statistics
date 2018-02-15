@@ -1433,8 +1433,9 @@ random_usize_limited(VALUE rnd, size_t max)
 }
 #endif
 
-struct sample_single_memo {
+struct enum_sample_memo {
   size_t k;
+  long n;
   VALUE sample;
   VALUE random;
 };
@@ -1442,7 +1443,7 @@ struct sample_single_memo {
 static VALUE
 enum_sample_single_i(RB_BLOCK_CALL_FUNC_ARGLIST(e, data))
 {
-  struct sample_single_memo *memo = (struct sample_single_memo *)data;
+  struct enum_sample_memo *memo = (struct enum_sample_memo *)data;
   ENUM_WANT_SVALUE();
 
   if (++memo->k <= 1) {
@@ -1461,9 +1462,10 @@ enum_sample_single_i(RB_BLOCK_CALL_FUNC_ARGLIST(e, data))
 static VALUE
 enum_sample_single(VALUE obj, VALUE random)
 {
-  struct sample_single_memo memo;
+  struct enum_sample_memo memo;
 
   memo.k = 0;
+  memo.n = 1;
   memo.sample = Qundef;
   memo.random = random;
 
@@ -1473,11 +1475,44 @@ enum_sample_single(VALUE obj, VALUE random)
 }
 
 static VALUE
-enum_sample_multiple_unweighted(VALUE obj, long size, int replace_p)
+enum_sample_multiple_without_replace_unweighted_i(RB_BLOCK_CALL_FUNC_ARGLIST(e, data))
 {
-  assert(size > 1);
+  struct enum_sample_memo *memo = (struct enum_sample_memo *)data;
+  ENUM_WANT_SVALUE();
+
+  if (++memo->k <= memo->n) {
+    rb_ary_push(memo->sample, e);
+  }
+  else {
+    size_t j = random_usize_limited(memo->random, memo->k - 1);
+    if (j <= memo->n) {
+      rb_ary_store(memo->sample, (long)(j - 1), e);
+    }
+  }
 
   return Qnil;
+}
+
+static VALUE
+enum_sample_multiple_unweighted(VALUE obj, long size, VALUE random, int replace_p)
+{
+  struct enum_sample_memo memo;
+
+  assert(size > 1);
+
+  memo.k = 0;
+  memo.n = size;
+  memo.sample = rb_ary_new_capa(size);
+  memo.random = random;
+
+  if (replace_p) {
+    return Qnil;
+  }
+  else {
+    rb_block_call(obj, id_each, 0, 0, enum_sample_multiple_without_replace_unweighted_i, (VALUE)&memo);
+  }
+
+  return memo.sample;
 }
 
 /* call-seq:
@@ -1516,6 +1551,7 @@ enum_sample(int argc, VALUE *argv, VALUE obj)
     replace_v = kwargs[1];
     /* weights_v = kwargs[2]; */
   }
+
   if (random_v == Qundef) {
     random_v = rb_cRandom;
   }
@@ -1525,9 +1561,9 @@ single:
     return enum_sample_single(obj, random_v);
   }
 
-  replace_p = (replace_v == Qundef) ? 1 : RTEST(replace_v);
+  replace_p = (replace_v == Qundef) ? 0 : RTEST(replace_v);
 
-  return enum_sample_unweighted(obj, NUM2LONG(size), replace_p);
+  return enum_sample_multiple_unweighted(obj, size, random_v, replace_p);
 }
 
 
