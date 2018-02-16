@@ -109,9 +109,13 @@ RSpec.describe Enumerable, '#sample' do
   context 'without weight' do
     let(:enum) { 1.upto(100000) }
 
-    context 'without size' do
-      context 'without rng' do
-        context 'without weight' do
+    specify { expect(opts).not_to include(:weights) }
+
+    context 'without replacement' do
+      specify { expect(opts).not_to include(:replace) }
+
+      context 'without size' do
+	context 'without rng' do
           specify do
             result = enum.sample
             expect(result).to be_an(Integer)
@@ -119,22 +123,20 @@ RSpec.describe Enumerable, '#sample' do
             expect(other_results).not_to be_all {|i| i == result }
           end
         end
+
+	context 'with rng' do
+	  specify do
+	    save_random = random.dup
+	    result = enum.sample(random: random)
+	    expect(result).to be_an(Integer)
+	    other_results = Array.new(100) { enum.sample(random: save_random.dup) }
+	    expect(other_results).to be_all {|i| i == result }
+	  end
+	end
       end
 
-      context 'with rng' do
-        specify do
-          save_random = random.dup
-          result = enum.sample(random: random)
-          expect(result).to be_an(Integer)
-          other_results = Array.new(100) { enum.sample(random: save_random.dup) }
-          expect(other_results).to be_all {|i| i == result }
-        end
-      end
-    end
-
-    context 'with size (== 1)' do
-      context 'without rng' do
-        context 'without weight' do
+      context 'with size (== 1)' do
+        context 'without rng' do
           specify do
             result = enum.sample(1)
             expect(result).to be_an(Integer)
@@ -142,21 +144,19 @@ RSpec.describe Enumerable, '#sample' do
             expect(other_results).not_to be_all {|i| i == result }
           end
         end
-      end
 
-      context 'with rng' do
-        specify do
-          save_random = random.dup
-          result = enum.sample(1, random: random)
-          expect(result).to be_an(Integer)
-          other_results = Array.new(100) { enum.sample(1, random: save_random.dup) }
-          expect(other_results).to be_all {|i| i == result }
+        context 'with rng' do
+          specify do
+            save_random = random.dup
+            result = enum.sample(1, random: random)
+            expect(result).to be_an(Integer)
+            other_results = Array.new(100) { enum.sample(1, random: save_random.dup) }
+            expect(other_results).to be_all {|i| i == result }
+          end
         end
       end
-    end
 
-    context 'with size (> 1)' do
-      context 'without replacement' do
+      context 'with size (> 1)' do
         context 'without rng' do
           subject(:result) { enum.sample(n) }
 
@@ -184,10 +184,14 @@ RSpec.describe Enumerable, '#sample' do
           end
         end
       end
+    end
 
-      context 'with replacement' do
-        pending
-      end
+    context 'with replacement' do
+      let(:replace) { true }
+
+      specify { expect(opts).to include(replace: true) }
+
+      pending
     end
   end
 
