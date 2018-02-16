@@ -1525,7 +1525,8 @@ enum_sample_multiple_unweighted(VALUE obj, long size, VALUE random, int replace_
  * Choose a random element or +n+ random elements from the enumerable.
  *
  * The enumerable is completely scanned just once for choosing random elements
- * even if +n+ is ommitted or +n+ is +1+.
+ * even if +n+ is ommitted or +n+ is +1+.  This means this method cannot be
+ * applicable to an infinite enumerable.
  *
  * +replace:+ keyword specifies whether the sample is with or without
  * replacement.
