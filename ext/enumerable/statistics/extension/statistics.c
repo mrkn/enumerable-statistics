@@ -1516,7 +1516,32 @@ enum_sample_multiple_unweighted(VALUE obj, long size, VALUE random, int replace_
 }
 
 /* call-seq:
- *    enum.sample(n=1, random: Random, replace: false)
+ *    enum.sample                                -> obj
+ *    enum.sample(random: rng)                   -> obj
+ *    enum.sample(n)                             -> ary
+ *    enum.sample(n, random: rng)                -> ary
+ *    enum.sample(n, random: rng, replace: true) -> ary
+ *
+ * Choose a random element or +n+ random elements from the enumerable.
+ *
+ * The enumerable is completely scanned just once for choosing random elements
+ * even if +n+ is ommitted or +n+ is +1+.
+ *
+ * +replace:+ keyword specifies whether the sample is with or without
+ * replacement.
+ *
+ * On without-replacement sampling, the elements are chosen by using random
+ * in order to ensure that an element doesn't repeat itself unless the
+ * enumerable already contained duplicated elements.
+ *
+ * On with-replacement sampling, the elements are chosen by using random, and
+ * indices into the array can be duplicated even if the enumerable didn't contain
+ * duplicated elements.
+ *
+ * If the enumerable is empty the first two forms return +nil+, and the latter
+ * forms with +n+ return an empty array.
+ *
+ * The optional +rng+ argument will be used as the random number generator.
  */
 static VALUE
 enum_sample(int argc, VALUE *argv, VALUE obj)
