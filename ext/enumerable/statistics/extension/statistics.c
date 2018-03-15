@@ -1148,6 +1148,7 @@ enum_sum_count(VALUE obj, VALUE init, VALUE *sum_ptr, long *count_ptr)
     *count_ptr = memo.count;
 }
 
+#ifndef HAVE_ENUM_SUM
 /* call-seq:
  *    enum.sum
  *
@@ -1172,6 +1173,7 @@ enum_sum(int argc, VALUE* argv, VALUE obj)
 
   return sum;
 }
+#endif
 
 struct enum_mean_variance_memo {
   int block_given;
