@@ -132,28 +132,6 @@ complex_new(VALUE klass, VALUE real, VALUE imag)
 }
 
 static VALUE
-complex_caonicalize_new(VALUE klass, VALUE real, VALUE imag)
-{
-  if (f_real_p(real) && f_real_p(imag))
-    return complex_new(klass, real, imag);
-  else if (f_real_p(imag)) {
-    VALUE new_imag;
-
-    new_imag = f_add(RCOMPLEX(real)->imag, imag);
-
-    return complex_new(klass, RCOMPLEX(real)->real, new_imag);
-  }
-  else {
-    VALUE new_real, new_imag;
-
-    new_real = f_sub(RCOMPLEX(real)->real, RCOMPLEX(imag)->imag);
-    new_imag = f_add(RCOMPLEX(real)->imag, RCOMPLEX(imag)->real);
-
-    return complex_new(klass, new_real, new_imag);
-  }
-}
-
-static VALUE
 complex_add(VALUE self, VALUE other)
 {
   if (RB_TYPE_P(other, T_COMPLEX)) {
