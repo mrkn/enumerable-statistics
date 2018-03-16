@@ -601,7 +601,7 @@ rb_rational_plus(VALUE self, VALUE other)
     VALUE num = RRATIONAL(self)->num;
     VALUE den = RRATIONAL(self)->den;
 
-    return f_addsub(self, num, den, other, ONE, idPLUS);
+    return f_addsub(self, num, den, other, ONE, '+');
   }
   else if (RB_TYPE_P(other, T_FLOAT)) {
     return f_add(f_to_f(self), other);
@@ -830,11 +830,11 @@ ary_mean_variance(VALUE ary, VALUE *mean_ptr, VALUE *variance_ptr, size_t ddof)
 static int
 opt_population_p(VALUE opts)
 {
-  ID kwargs = id_population;
   VALUE population = Qfalse;
 
   if (!NIL_P(opts)) {
 #ifdef HAVE_RB_GET_KWARGS
+    ID kwargs = id_population;
     rb_get_kwargs(opts, &kwargs, 0, 1, &population);
 #else
     VALUE val = rb_hash_aref(opts, ID2SYM(id_population));
@@ -1155,7 +1155,7 @@ enum_sum(int argc, VALUE* argv, VALUE obj)
 
 struct enum_mean_variance_memo {
   int block_given;
-  long n;
+  size_t n;
   double m, m2, f, c;
 };
 
@@ -1209,7 +1209,7 @@ enum_mean_variance_iter_i(RB_BLOCK_CALL_FUNC_ARGLIST(e, args))
 {
   struct enum_mean_variance_memo *memo = (struct enum_mean_variance_memo *)args;
   ENUM_WANT_SVALUE();
-  mean_variance_iter(e, (struct enum_mean_variance_memo *) args);
+  mean_variance_iter(e, memo);
   return Qnil;
 }
 
