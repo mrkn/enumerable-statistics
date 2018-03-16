@@ -1413,6 +1413,186 @@ enum_stdev(int argc, VALUE* argv, VALUE obj)
   return stdev;
 }
 
+#if SIZEOF_SIZE_T == SIZEOF_LONG
+static inline size_t
+random_usize_limited(VALUE rnd, size_t max)
+{
+  return (size_t)rb_random_ulong_limited(rnd, max);
+}
+#else
+static inline size_t
+random_usize_limited(VALUE rnd, size_t max)
+{
+  if (max <= ULONG_MAX) {
+    return (size_t)rb_random_ulong_limited(rnd, (unsigned long)max);
+  }
+  else {
+    VALUE num = rb_random_int(rnd, SIZET2NUM(max));
+    return NUM2SIZET(num);
+  }
+}
+#endif
+
+struct enum_sample_memo {
+  size_t k;
+  long n;
+  VALUE sample;
+  VALUE random;
+};
+
+static VALUE
+enum_sample_single_i(RB_BLOCK_CALL_FUNC_ARGLIST(e, data))
+{
+  struct enum_sample_memo *memo = (struct enum_sample_memo *)data;
+  ENUM_WANT_SVALUE();
+
+  if (++memo->k <= 1) {
+    memo->sample = e;
+  }
+  else {
+    size_t j = random_usize_limited(memo->random, memo->k - 1);
+    if (j == 1) {
+      memo->sample = e;
+    }
+  }
+
+  return Qnil;
+}
+
+static VALUE
+enum_sample_single(VALUE obj, VALUE random)
+{
+  struct enum_sample_memo memo;
+
+  memo.k = 0;
+  memo.n = 1;
+  memo.sample = Qundef;
+  memo.random = random;
+
+  rb_block_call(obj, id_each, 0, 0, enum_sample_single_i, (VALUE)&memo);
+
+  return memo.sample;
+}
+
+static VALUE
+enum_sample_multiple_without_replace_unweighted_i(RB_BLOCK_CALL_FUNC_ARGLIST(e, data))
+{
+  struct enum_sample_memo *memo = (struct enum_sample_memo *)data;
+  ENUM_WANT_SVALUE();
+
+  if (++memo->k <= memo->n) {
+    rb_ary_push(memo->sample, e);
+  }
+  else {
+    size_t j = random_usize_limited(memo->random, memo->k - 1);
+    if (j <= memo->n) {
+      rb_ary_store(memo->sample, (long)(j - 1), e);
+    }
+  }
+
+  return Qnil;
+}
+
+static VALUE
+enum_sample_multiple_unweighted(VALUE obj, long size, VALUE random, int replace_p)
+{
+  struct enum_sample_memo memo;
+
+  assert(size > 1);
+
+  memo.k = 0;
+  memo.n = size;
+  memo.sample = rb_ary_new_capa(size);
+  memo.random = random;
+
+  if (replace_p) {
+    return Qnil;
+  }
+  else {
+    rb_block_call(obj, id_each, 0, 0, enum_sample_multiple_without_replace_unweighted_i, (VALUE)&memo);
+  }
+
+  return memo.sample;
+}
+
+/* call-seq:
+ *    enum.sample                                -> obj
+ *    enum.sample(random: rng)                   -> obj
+ *    enum.sample(n)                             -> ary
+ *    enum.sample(n, random: rng)                -> ary
+ *    enum.sample(n, random: rng, replace: true) -> ary
+ *
+ * Choose a random element or +n+ random elements from the enumerable.
+ *
+ * The enumerable is completely scanned just once for choosing random elements
+ * even if +n+ is ommitted or +n+ is +1+.  This means this method cannot be
+ * applicable to an infinite enumerable.
+ *
+ * +replace:+ keyword specifies whether the sample is with or without
+ * replacement.
+ *
+ * On without-replacement sampling, the elements are chosen by using random
+ * in order to ensure that an element doesn't repeat itself unless the
+ * enumerable already contained duplicated elements.
+ *
+ * On with-replacement sampling, the elements are chosen by using random, and
+ * indices into the array can be duplicated even if the enumerable didn't contain
+ * duplicated elements.
+ *
+ * If the enumerable is empty the first two forms return +nil+, and the latter
+ * forms with +n+ return an empty array.
+ *
+ * The optional +rng+ argument will be used as the random number generator.
+ */
+static VALUE
+enum_sample(int argc, VALUE *argv, VALUE obj)
+{
+  VALUE size_v, random_v, replace_v, weights_v, opts;
+  long size;
+  int replace_p;
+
+  random_v = rb_cRandom;
+  replace_v = Qundef;
+  weights_v = Qundef;
+
+  if (argc == 0) goto single;
+
+  rb_scan_args(argc, argv, "01:", &size_v, &opts);
+  size = NIL_P(size_v) ? 1 : NUM2LONG(size_v);
+
+  if (size == 1 && NIL_P(opts)) {
+    goto single;
+  }
+
+  if (!NIL_P(opts)) {
+    static ID keywords[3];
+    VALUE kwargs[3];
+    if (!keywords[0]) {
+      keywords[0] = rb_intern("random");
+      keywords[1] = rb_intern("replace");
+      /* keywords[2] = rb_intern("weights"); */
+    }
+    rb_get_kwargs(opts, keywords, 0, 2, kwargs);
+    random_v = kwargs[0];
+    replace_v = kwargs[1];
+    /* weights_v = kwargs[2]; */
+  }
+
+  if (random_v == Qundef) {
+    random_v = rb_cRandom;
+  }
+
+  if (size == 1) {
+single:
+    return enum_sample_single(obj, random_v);
+  }
+
+  replace_p = (replace_v == Qundef) ? 0 : RTEST(replace_v);
+
+  return enum_sample_multiple_unweighted(obj, size, random_v, replace_p);
+}
+
+
 /* call-seq:
  *    ary.mean_stdev(population: false)
  *
@@ -1479,6 +1659,7 @@ Init_extension(void)
   rb_define_method(rb_mEnumerable, "variance", enum_variance, -1);
   rb_define_method(rb_mEnumerable, "mean_stdev", enum_mean_stdev, -1);
   rb_define_method(rb_mEnumerable, "stdev", enum_stdev, -1);
+  rb_define_method(rb_mEnumerable, "sample", enum_sample, -1);
 
 #ifndef HAVE_ARRAY_SUM
   rb_define_method(rb_cArray, "sum", ary_sum, -1);
