@@ -6,6 +6,4 @@ module Enumerable
   end
 end
 
-require_relative 'statistics/value_counts'
-
-Array.include Enumerable::Statistics::ArrayExtension
+require_relative 'statistics/array_ext'
