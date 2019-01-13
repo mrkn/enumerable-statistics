@@ -15,44 +15,44 @@ RSpec.describe Array do
     # {"b"=>10, "g"=>11, "a"=>3, "f"=>6, "e"=>4, "c"=>3, "d"=>3}
     matrix = [
       { normalize: false, sort: true,  ascending: false, dropna: true,
-        result: {"g"=>11, "b"=>20, "f"=>6, "e"=>4, "a"=>3, "c"=>3, "d"=>3} },
+        result: {"g"=>11, "b"=>10, "f"=>6, "e"=>4, "a"=>3, "c"=>3, "d"=>3} },
       { normalize: false, sort: true,  ascending: false, dropna: false,
-        result: {"g"=>11, "b"=>20, "f"=>6, "e"=>4, "a"=>3, "c"=>3, "d"=>3, nil=>3} },
+        result: {"g"=>11, "b"=>10, "f"=>6, "e"=>4, "a"=>3, "c"=>3, "d"=>3, nil=>3} },
 
       { normalize: false, sort: true,  ascending: true,  dropna: true,
-        result: {"d"=>3, "c"=>3, "a"=>3, "e"=>4, "f"=>6, "b"=>10, "g"=>11} },
+        result: {"a"=>3, "c"=>3, "d"=>3, "e"=>4, "f"=>6, "b"=>10, "g"=>11} },
       { normalize: false, sort: true,  ascending: true,  dropna: false,
-        result: {nil=>3, "d"=>3, "c"=>3, "a"=>3, "e"=>4, "f"=>6, "b"=>10, "g"=>11} },
+        result: {nil=>3, "a"=>3, "c"=>3, "d"=>3, "e"=>4, "f"=>6, "b"=>10, "g"=>11} },
 
       { normalize: false, sort: false, ascending: false, dropna: true,
-        result: {"g"=>11, "e"=>4, "f"=>6, "b"=>10, "d"=>3, "c"=>3, "a"=>3} },
+        result: {"b"=>10, "g"=>11, "a"=>3, "f"=>6, "e"=>4, "c"=>3, "d"=>3} },
       { normalize: false, sort: false, ascending: false, dropna: false,
-        result: {nil=>3, "g"=>11, "e"=>4, "f"=>6, "b"=>10, "d"=>3, "c"=>3, "a"=>3} },
+        result: {nil=>3, "b"=>10, "g"=>11, "a"=>3, "f"=>6, "e"=>4, "c"=>3, "d"=>3} },
 
       { normalize: false, sort: false, ascending: true,  dropna: true,
-        result: {"g"=>11, "e"=>4, "f"=>6, "b"=>10, "d"=>3, "c"=>3, "a"=>3} },
+        result: {"b"=>10, "g"=>11, "a"=>3, "f"=>6, "e"=>4, "c"=>3, "d"=>3} },
       { normalize: false, sort: false, ascending: true,  dropna: false,
-        result: {nil=>3, "g"=>11, "e"=>4, "f"=>6, "b"=>10, "d"=>3, "c"=>3, "a"=>3} },
+        result: {nil=>3, "b"=>10, "g"=>11, "a"=>3, "f"=>6, "e"=>4, "c"=>3, "d"=>3} },
 
       { normalize: true,  sort: true,  ascending: false, dropna: true,
         result: {"g"=>0.275, "b"=>0.250, "f"=>0.150, "e"=>0.100, "a"=>0.075, "c"=>0.075, "d"=>0.075} },
       { normalize: true,  sort: true,  ascending: false, dropna: false,
-        result: {"g"=>0.255814, "b"=>0.232558, "f"=>0.139535, "e"=>0.093023, "a"=>0.069767, "c"=>0.069767, "d"=>0.069767, nil=>0.069767} },
+        result: {"g"=>11/43.0, "b"=>10/43.0, "f"=>6/43.0, "e"=>4/43.0, "a"=>3/43.0, "c"=>3/43.0, "d"=>3/43.0, nil=>3/43.0} },
 
       { normalize: true,  sort: true,  ascending: true,  dropna: true,
-        result: {"d"=>0.075, "c"=>0.075, "a"=>0.075, "e"=>0.100, "f"=>0.150, "b"=>0.250, "g"=>0.275} },
+        result: {"a"=>0.075, "c"=>0.075, "d"=>0.075, "e"=>0.100, "f"=>0.150, "b"=>0.250, "g"=>0.275} },
       { normalize: true,  sort: true,  ascending: true,  dropna: false,
-        result: {nil=>0.069767, "d"=>0.069767, "c"=>0.069767, "a"=>0.069767, "e"=>0.093023, "f"=>0.139535, "b"=>0.232558, "g"=>0.255814} },
+        result: {nil=>3/43.0, "a"=>3/43.0, "c"=>3/43.0, "d"=>3/43.0, "e"=>4/43.0, "f"=>6/43.0, "b"=>10/43.0, "g"=>11/43.0} },
 
       { normalize: true,  sort: false, ascending: false, dropna: true,
-        result: {"g"=>0.275, "e"=>0.100, "f"=>0.150, "b"=>0.250, "d"=>0.075, "c"=>0.075, "a"=>0.075} },
+        result: {"b"=>0.250, "g"=>0.275, "a"=>0.075, "f"=>0.150, "e"=>0.100, "c"=>0.075, "d"=>0.075} },
       { normalize: true,  sort: false, ascending: false, dropna: false,
-        result: {nil=>0.069767, "g"=>0.255814, "e"=>0.093023, "f"=>0.139535, "b"=>0.232558, "d"=>0.069767, "c"=>0.069767, "a"=>0.069767} },
+        result: {nil=>3/43.0, "b"=>10/43.0, "g"=>11/43.0, "a"=>3/43.0, "f"=>6/43.0, "e"=>4/43.0, "c"=>3/43.0, "d"=>3/43.0} },
 
       { normalize: true,  sort: false, ascending: true,  dropna: true,
-        result: {"g"=>0.275, "e"=>0.100, "f"=>0.150, "b"=>0.250, "d"=>0.075, "c"=>0.075, "a"=>0.075} },
+        result: {"b"=>0.250, "g"=>0.275, "a"=>0.075, "f"=>0.150, "e"=>0.100, "c"=>0.075, "d"=>0.075} },
       { normalize: true,  sort: false, ascending: true,  dropna: false,
-        result: {nil=>0.069767, "g"=>0.255814, "e"=>0.093023, "f"=>0.139535, "b"=>0.232558, "d"=>0.069767, "c"=>0.069767, "a"=>0.069767} },
+        result: {nil=>3/43.0, "b"=>10/43.0, "g"=>11/43.0, "a"=>3/43.0, "f"=>6/43.0, "e"=>4/43.0, "c"=>3/43.0, "d"=>3/43.0} },
     ]
 
     matrix.each do |params|
@@ -61,7 +61,7 @@ RSpec.describe Array do
         specify do
           params = params.dup
           expected_result = params.delete(:result)
-          expect(receiver.value_counts(**params)).to eq(expected_result)
+          expect(receiver.value_counts(**params).to_a).to eq(expected_result.to_a)
         end
       end
     end
