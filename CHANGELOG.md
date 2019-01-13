@@ -1,3 +1,7 @@
+# master
+
+- Add `value_counts` method in Array class
+
 # 1.0.1
 
 - Add `mean_variance` method in Array class and Enumerable module
