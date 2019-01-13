@@ -5,3 +5,5 @@ module Enumerable
     VERSION = Gem.loaded_specs['enumerable-statistics'].version.to_s
   end
 end
+
+require_relative 'statistics/array_ext'
