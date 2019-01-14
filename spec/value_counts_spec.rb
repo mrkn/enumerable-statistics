@@ -78,10 +78,18 @@ end
 
 RSpec.describe Enumerable do
   describe '#value_counts' do
-    let(:receiver) do
-      'bggbafgeeebgbbaccdgdgdbbgbgffbaffggcegbf'.each_char
+    let(:array) do
+      'bggbafgeeebgbbaccdgdgdbbgbgffbaffggcegbf'.chars.tap do |ary|
+        ary[5, 0] = nil
+        ary[15, 0] = nil
+        ary[20, 0] = nil
+      end
     end
 
-    pending 'TODO'
+    let(:receiver) do
+      array.each
+    end
+
+    include_examples 'value_counts'
   end
 end
