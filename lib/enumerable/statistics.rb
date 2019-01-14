@@ -7,3 +7,4 @@ module Enumerable
 end
 
 require_relative 'statistics/array_ext'
+require_relative 'statistics/enumerable_ext'
