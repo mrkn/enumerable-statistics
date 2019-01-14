@@ -72,7 +72,19 @@ end
 
 RSpec.describe Hash do
   describe '#value_counts' do
-    pending 'TODO'
+    let(:array) do
+      'bggbafgeeebgbbaccdgdgdbbgbgffbaffggcegbf'.chars.tap do |ary|
+        ary[5, 0] = nil
+        ary[15, 0] = nil
+        ary[20, 0] = nil
+      end
+    end
+
+    let(:receiver) do
+      array.map.with_index {|x, i| [i, x] }.to_h
+    end
+
+    include_examples 'value_counts'
   end
 end
 
