@@ -1,0 +1,42 @@
+contexts:
+  - name: "1.1.0.dev"
+    gems:
+      enumerable-statistics: "1.1.0.dev"
+    require: false
+    prelude: |-
+      require 'enumerable/statistics'
+  - name: "master"
+    prelude: |-
+      require 'bundler/setup'
+      require 'enumerable/statistics'
+prelude: |-
+  n = 1000
+  chars = ('a'..'m').to_a
+  ary = Array.new(n) { chars.sample }
+benchmark:
+  inject: |-
+    ary.inject(Hash.new(0)) { |h, x| h[x] += 1; h }
+  unsort_keepna: |-
+    ary.value_counts(sort: false, dropna: false)
+  unsort_dropna: |-
+    ary.value_counts(sort: false, dropna: true)
+  sort_keepna: |-
+    ary.value_counts(sort: true, dropna: false)
+  sort_dropna: |-
+    ary.value_counts(sort: true, dropna: true)
+  norm_unsort_keepna: |-
+    ary.value_counts(normalize: true, sort: false, dropna: false)
+  norm_unsort_dropna: |-
+    ary.value_counts(normalize: true, sort: false, dropna: true)
+  norm_sort_keepna: |-
+    ary.value_counts(normalize: true, sort: true, dropna: false)
+  norm_sort_dropna: |-
+    ary.value_counts(normalize: true, sort: true, dropna: true)
+  sort_asc_keepna: |-
+    ary.value_counts(sort: true, ascending: true, dropna: false)
+  sort_asc_dropna: |-
+    ary.value_counts(sort: true, ascending: true, dropna: true)
+  norm_sort_asc_keepna: |-
+    ary.value_counts(normalize: true, sort: true, ascending: true, dropna: false)
+  norm_sort_asc_dropna: |-
+    ary.value_counts(normalize: true, sort: true, ascending: true, dropna: true)
