@@ -1,0 +1,18 @@
+contexts:
+  - name: "master"
+    prelude: |-
+      require 'bundler/setup'
+      require 'enumerable/statistics'
+prelude: |-
+  n = 1000
+  ary = Array.new(n) { rand }
+benchmark:
+  inject: mean = ary.inject(:+) / n.to_f
+  while: |-
+    i, mean = 0, 0
+    while i < n
+      mean += ary[i]
+      i += 1
+    end
+    mean /= n.to_f
+  mean: mean = ary.mean

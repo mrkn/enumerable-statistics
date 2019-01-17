@@ -1,0 +1,17 @@
+contexts:
+  - name: "master"
+    prelude: |-
+      require 'bundler/setup'
+      require 'enumerable/statistics'
+prelude: |-
+  n = 1000
+  ary = Array.new(n) { rand }
+benchmark:
+  inject: sum = ary.inject(:+)
+  while: |-
+    i, sum = 0, 0
+    while i < n
+      sum += ary[i]
+      i += 1
+    end
+  sum: sum = ary.sum

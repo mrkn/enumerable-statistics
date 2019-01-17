@@ -1,0 +1,23 @@
+contexts:
+  - name: "master"
+    prelude: |-
+      require 'bundler/setup'
+      require 'enumerable/statistics'
+prelude: |-
+  n = 1000
+  ary = Array.new(n) { rand }
+benchmark:
+  inject: |-
+    mean = ary.mean
+    var = ary.inject(0.0) { |sum, x|
+      sum += (x - mean) ** 2
+    } / (n - 1).to_f
+  while: |-
+    mean = ary.mean
+    i, var = 0, 0
+    while i < n
+      var += (ary[i] - mean) ** 2
+      i += 1
+    end
+    var /= n.to_f
+  variance: var = ary.variance

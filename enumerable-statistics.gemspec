@@ -23,5 +23,5 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "rake-compiler", "~> 0.9.8"
   spec.add_development_dependency "rspec", "~> 3.4"
   spec.add_development_dependency "fuubar"
-  spec.add_development_dependency "benchmark-ips"
+  spec.add_development_dependency "benchmark-driver"
 end
