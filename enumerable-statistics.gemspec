@@ -4,7 +4,7 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 
 Gem::Specification.new do |spec|
   spec.name          = "enumerable-statistics"
-  spec.version       = '1.1.0'
+  spec.version       = '1.1.0.dev'
   spec.authors       = ["Kenta Murata"]
   spec.email         = ["mrkn@mrkn.jp"]
 
