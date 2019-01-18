@@ -1,4 +1,5 @@
 #include <ruby/ruby.h>
+#include <ruby/util.h>
 #include <ruby/version.h>
 #include <assert.h>
 
@@ -86,7 +87,7 @@ struct RComplex {
 static VALUE half_in_rational;
 
 static ID idPow, idPLUS, idMINUS, idSTAR, idDIV, idGE;
-static ID id_eqeq_p, id_idiv, id_negate, id_to_f, id_cmp;
+static ID id_eqeq_p, id_idiv, id_negate, id_to_f, id_cmp, id_nan_p;
 static ID id_each, id_real_p, id_sum, id_population;
 
 inline static VALUE
@@ -1467,6 +1468,230 @@ ary_stdev(int argc, VALUE* argv, VALUE ary)
   return stdev;
 }
 
+static inline int
+is_na(VALUE v)
+{
+  if (NIL_P(v))
+    return 1;
+
+  if (RB_FLOAT_TYPE_P(v) && isnan(RFLOAT_VALUE(v)))
+    return 1;
+
+  if (rb_respond_to(v, id_nan_p) && RTEST(rb_funcall(v, id_nan_p, 0)))
+    return 1;
+
+  return 0;
+}
+
+static VALUE
+ary_value_counts_without_sort(VALUE ary, int const dropna_p, long *na_count_ptr, long *total_ptr)
+{
+  const VALUE zero = INT2FIX(0);
+  const VALUE one = INT2FIX(1);
+  VALUE result = rb_hash_new();
+  long i, na_count = 0;
+  long const n = RARRAY_LEN(ary);
+
+  if (dropna_p) {
+    for (i = 0; i < n; ++i) {
+      VALUE cnt, val;
+
+      val = RARRAY_AREF(ary, i);
+      if (is_na(val)) {
+        ++na_count;
+        continue;
+      }
+
+      cnt = rb_hash_lookup2(result, val, zero);
+      rb_hash_aset(result, val, rb_int_plus(cnt, one));
+    }
+  }
+  else {
+    rb_hash_aset(result, Qnil, zero); // reserve the room for NA
+
+    for (i = 0; i < n; ++i) {
+      VALUE val = RARRAY_AREF(ary, i);
+
+      if (is_na(val)) {
+        ++na_count;
+      }
+      else {
+        VALUE cnt = rb_hash_lookup2(result, val, zero);
+        rb_hash_aset(result, val, rb_int_plus(cnt, one));
+      }
+    }
+
+    if (na_count == 0)
+      rb_hash_delete(result, Qnil);
+    else
+      rb_hash_aset(result, Qnil, LONG2NUM(na_count));
+  }
+
+  if (na_count_ptr)
+    *na_count_ptr = na_count;
+
+  if (total_ptr)
+    *total_ptr = n;
+
+  return result;
+}
+
+static int
+ary_value_counts_result_to_a_i(VALUE key, VALUE val, VALUE ary)
+{
+  VALUE assoc = rb_ary_tmp_new(2);
+  rb_ary_push(assoc, key);
+  rb_ary_push(assoc, val);
+  rb_ary_push(ary, assoc);
+  return ST_CONTINUE;
+}
+
+static int
+ary_value_counts_sort_cmp_asc(const void *ap, const void *bp, void *dummy)
+{
+  VALUE a = *(const VALUE *)ap, b = *(const VALUE *)bp;
+  VALUE av, bv, cmp;
+
+  av = RARRAY_AREF(a, 1);
+  bv = RARRAY_AREF(b, 1);
+
+  /* TODO: optimize */
+  cmp = rb_funcall(av, id_cmp, 1, bv);
+  return rb_cmpint(cmp, av, bv);
+}
+
+static int
+ary_value_counts_sort_cmp_desc(const void *ap, const void *bp, void *dummy)
+{
+  VALUE a = *(const VALUE *)ap, b = *(const VALUE *)bp;
+  VALUE av, bv, cmp;
+
+  av = RARRAY_AREF(a, 1);
+  bv = RARRAY_AREF(b, 1);
+
+  /* TODO: optimize */
+  cmp = rb_funcall(bv, id_cmp, 1, av);
+  return rb_cmpint(cmp, bv, av);
+}
+
+static VALUE
+ary_value_counts_sort_result(VALUE result, const int dropna_p, const int ascending_p)
+{
+  VALUE na_count = Qundef, ary, sorted;
+  long i;
+
+  if (RHASH_SIZE(result) < 1) {
+    return result;
+  }
+
+  if (!dropna_p) {
+    na_count = rb_hash_lookup2(result, Qnil, Qundef);
+    if (na_count != Qundef) {
+      rb_hash_delete(result, Qnil);
+    }
+  }
+
+  const long len = (long)RHASH_SIZE(result);
+  ary = rb_ary_tmp_new(len);
+  rb_hash_foreach(result, ary_value_counts_result_to_a_i, ary);
+  if (ascending_p) {
+    RARRAY_PTR_USE(ary, ptr, {
+      ruby_qsort(ptr, RARRAY_LEN(ary), sizeof(VALUE),
+                 ary_value_counts_sort_cmp_asc, NULL);
+    });
+  }
+  else {
+    RARRAY_PTR_USE(ary, ptr, {
+      ruby_qsort(ptr, RARRAY_LEN(ary), sizeof(VALUE),
+                 ary_value_counts_sort_cmp_desc, NULL);
+    });
+  }
+
+#ifdef HAVE_RB_HASH_NEW_WITH_SIZE
+  sorted = rb_hash_new_with_size(len);
+#else
+  sorted = rb_hash_new();
+#endif
+
+  if (na_count != Qundef && ascending_p) {
+    rb_hash_aset(sorted, Qnil, na_count);
+  }
+
+  for (i = 0; i < len; ++i) {
+    VALUE a = RARRAY_AREF(ary, i);
+    VALUE k = RARRAY_AREF(a, 0);
+    VALUE v = RARRAY_AREF(a, 1);
+    rb_hash_aset(sorted, k, v);
+  }
+
+  if (na_count != Qundef && !ascending_p) {
+    rb_hash_aset(sorted, Qnil, na_count);
+  }
+
+  return sorted;
+}
+
+struct value_counts_normalize_params {
+  VALUE result;
+  long total;
+};
+
+static int
+ary_value_counts_normalize_i(VALUE key, VALUE val, VALUE arg)
+{
+  struct value_counts_normalize_params *params = (struct value_counts_normalize_params *)arg;
+  double new_val;
+
+  new_val = NUM2DBL(val) / params->total;
+  rb_hash_aset(params->result, key, DBL2NUM(new_val));
+
+  return ST_CONTINUE;
+}
+
+static VALUE
+ary_value_counts(int argc, VALUE* argv, VALUE ary)
+{
+  VALUE kwargs, result;
+  int normalize_p = 0, sort_p = 1, ascending_p = 0, dropna_p = 1;
+  long total, na_count;
+
+  rb_scan_args(argc, argv, ":", &kwargs);
+  if (!NIL_P(kwargs)) {
+    enum { kw_normalize, kw_sort, kw_ascending, kw_dropna };
+    static ID kwarg_keys[4];
+    VALUE kwarg_vals[4];
+
+    if (!kwarg_keys[0]) {
+      kwarg_keys[kw_normalize] = rb_intern("normalize");
+      kwarg_keys[kw_sort]      = rb_intern("sort");
+      kwarg_keys[kw_ascending] = rb_intern("ascending");
+      kwarg_keys[kw_dropna]    = rb_intern("dropna");
+    }
+
+    rb_get_kwargs(kwargs, kwarg_keys, 0, 4, kwarg_vals);
+    normalize_p = (kwarg_vals[kw_normalize] != Qundef) && RTEST(kwarg_vals[kw_normalize]);
+    sort_p      = (kwarg_vals[kw_sort]      != Qundef) && RTEST(kwarg_vals[kw_sort]);
+    ascending_p = (kwarg_vals[kw_ascending] != Qundef) && RTEST(kwarg_vals[kw_ascending]);
+    dropna_p    = (kwarg_vals[kw_dropna]    != Qundef) && RTEST(kwarg_vals[kw_dropna]);
+  }
+
+  na_count = 0;
+  result = ary_value_counts_without_sort(ary, dropna_p, &na_count, &total);
+
+  if (sort_p) {
+    result = ary_value_counts_sort_result(result, dropna_p, ascending_p);
+  }
+
+  if (normalize_p) {
+    struct value_counts_normalize_params params;
+    params.result = result;
+    params.total = total - (dropna_p ? na_count : 0);
+    rb_hash_foreach(result, ary_value_counts_normalize_i, (VALUE)&params);
+  }
+
+  return result;
+}
+
 void
 Init_extension(void)
 {
@@ -1488,6 +1713,7 @@ Init_extension(void)
   rb_define_method(rb_cArray, "variance", ary_variance, -1);
   rb_define_method(rb_cArray, "mean_stdev", ary_mean_stdev, -1);
   rb_define_method(rb_cArray, "stdev", ary_stdev, -1);
+  rb_define_method(rb_cArray, "value_counts", ary_value_counts, -1);
 
   half_in_rational = nurat_s_new_internal(rb_cRational, INT2FIX(1), INT2FIX(2));
   rb_gc_register_mark_object(half_in_rational);
@@ -1503,6 +1729,7 @@ Init_extension(void)
   id_negate = rb_intern("-@");
   id_to_f = rb_intern("to_f");
   id_cmp = rb_intern("<=>");
+  id_nan_p = rb_intern("nan?");
   id_each = rb_intern("each");
   id_real_p = rb_intern("real?");
   id_sum = rb_intern("sum");
