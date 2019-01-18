@@ -6,6 +6,5 @@ module Enumerable
   end
 end
 
-require_relative 'statistics/array_ext'
 require_relative 'statistics/enumerable_ext'
 require_relative 'statistics/hash_ext'
