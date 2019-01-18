@@ -1648,6 +1648,14 @@ ary_value_counts_normalize_i(VALUE key, VALUE val, VALUE arg)
   return ST_CONTINUE;
 }
 
+/* call-seq:
+ *    ary.value_counts(normalize: false, sort: true,
+ *                     ascending: false, dropna: true) -> hash
+ *
+ * Returns a hash that contains the counts of values in `ary`.
+ *
+ * @return [Hash] A hash consists of the counts of the values
+ */
 static VALUE
 ary_value_counts(int argc, VALUE* argv, VALUE ary)
 {
