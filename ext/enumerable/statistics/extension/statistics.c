@@ -847,7 +847,7 @@ opt_population_p(VALUE opts)
 }
 
 /* call-seq:
- *    eary.mean_variance(population: false)
+ *    ary.mean_variance(population: false)
  *
  * Calculate a mean and a variance of the values in `ary`.
  * The first element of the result array is the mean, and the second is the variance.
