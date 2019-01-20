@@ -5,7 +5,7 @@ contexts:
     require: false
     prelude: |-
       require 'enumerable/statistics'
-  - name: "master"
+  - name: "HEAD"
     prelude: |-
       require 'bundler/setup'
       require 'enumerable/statistics'
