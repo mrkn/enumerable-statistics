@@ -1649,10 +1649,18 @@ ary_value_counts_normalize_i(VALUE key, VALUE val, VALUE arg)
 }
 
 /* call-seq:
- *    ary.value_counts(normalize: false, sort: true,
- *                     ascending: false, dropna: true) -> hash
+ *    ary.value_counts(normalize: false, sort: true, ascending: false, dropna: true) -> hash
  *
  * Returns a hash that contains the counts of values in `ary`.
+ *
+ * This method treats `nil` and NaN, the objects who respond `true` to `nan?`,
+ * as the same thing, and stores the count of them as the value for `nil`.
+ *
+ * @param [false,true] normalize  If `true`, the result contains the relative
+ *                                frequencies of the unique values.
+ * @param [true,false] sort  Sort by values.
+ * @param [false,true] ascending  Sort in ascending order.
+ * @param [true,false] dropna  Don't include counts of NAs.
  *
  * @return [Hash] A hash consists of the counts of the values
  */
