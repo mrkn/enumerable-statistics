@@ -15,4 +15,16 @@ benchmark:
       i += 1
     end
     mean /= n.to_f
-  mean: mean = ary.mean
+  pure_ruby: |-
+    i, f, c = 0, 0.0, 0.0, 0.0, 0.0
+    while i < n
+      x = ary[i]
+      y = x - c
+      t = f + y
+      c = (t - f) - y
+      f = t
+
+      i += 1
+    end
+    mean = f / n
+  c_ext: mean = ary.mean

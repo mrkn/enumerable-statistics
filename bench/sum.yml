@@ -14,4 +14,16 @@ benchmark:
       sum += ary[i]
       i += 1
     end
+  pure_ruby: |-
+    i, f, c = 0, 0.0, 0.0, 0.0, 0.0
+    while i < n
+      x = ary[i]
+      y = x - c
+      t = f + y
+      c = (t - f) - y
+      f = t
+
+      i += 1
+    end
+    sum = f
   sum: sum = ary.sum
