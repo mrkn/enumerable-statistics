@@ -12,11 +12,11 @@ RSpec::Core::RakeTask.new(:spec)
 
 task :bench do
   puts "# sum\n"
-  system('ruby bench/sum.rb')
+  system('benchmark-driver bench/sum.yml')
 
   puts "# mean\n"
-  system('ruby bench/mean.rb')
+  system('benchmark-driver bench/mean.yml')
 
   puts "# variance\n"
-  system('ruby bench/variance.rb')
+  system('benchmark-driver bench/variance.yml')
 end
