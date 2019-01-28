@@ -1575,7 +1575,7 @@ ary_value_counts_without_sort(VALUE ary, int const dropna_p, long *na_count_ptr,
 }
 
 static int
-ary_value_counts_result_to_a_i(VALUE key, VALUE val, VALUE ary)
+value_counts_result_to_assoc_array_i(VALUE key, VALUE val, VALUE ary)
 {
   VALUE assoc = rb_ary_tmp_new(2);
   rb_ary_push(assoc, key);
@@ -1585,7 +1585,7 @@ ary_value_counts_result_to_a_i(VALUE key, VALUE val, VALUE ary)
 }
 
 static int
-ary_value_counts_sort_cmp_asc(const void *ap, const void *bp, void *dummy)
+value_counts_sort_cmp_asc(const void *ap, const void *bp, void *dummy)
 {
   VALUE a = *(const VALUE *)ap, b = *(const VALUE *)bp;
   VALUE av, bv, cmp;
@@ -1599,7 +1599,7 @@ ary_value_counts_sort_cmp_asc(const void *ap, const void *bp, void *dummy)
 }
 
 static int
-ary_value_counts_sort_cmp_desc(const void *ap, const void *bp, void *dummy)
+value_counts_sort_cmp_desc(const void *ap, const void *bp, void *dummy)
 {
   VALUE a = *(const VALUE *)ap, b = *(const VALUE *)bp;
   VALUE av, bv, cmp;
@@ -1613,7 +1613,7 @@ ary_value_counts_sort_cmp_desc(const void *ap, const void *bp, void *dummy)
 }
 
 static VALUE
-ary_value_counts_sort_result(VALUE result, const int dropna_p, const int ascending_p)
+value_counts_sort_result(VALUE result, const int dropna_p, const int ascending_p)
 {
   VALUE na_count = Qundef, ary, sorted;
   long i;
@@ -1631,17 +1631,17 @@ ary_value_counts_sort_result(VALUE result, const int dropna_p, const int ascendi
 
   const long len = (long)RHASH_SIZE(result);
   ary = rb_ary_tmp_new(len);
-  rb_hash_foreach(result, ary_value_counts_result_to_a_i, ary);
+  rb_hash_foreach(result, value_counts_result_to_assoc_array_i, ary);
   if (ascending_p) {
     RARRAY_PTR_USE(ary, ptr, {
       ruby_qsort(ptr, RARRAY_LEN(ary), sizeof(VALUE),
-                 ary_value_counts_sort_cmp_asc, NULL);
+                 value_counts_sort_cmp_asc, NULL);
     });
   }
   else {
     RARRAY_PTR_USE(ary, ptr, {
       ruby_qsort(ptr, RARRAY_LEN(ary), sizeof(VALUE),
-                 ary_value_counts_sort_cmp_desc, NULL);
+                 value_counts_sort_cmp_desc, NULL);
     });
   }
 
@@ -1675,7 +1675,7 @@ struct value_counts_normalize_params {
 };
 
 static int
-ary_value_counts_normalize_i(VALUE key, VALUE val, VALUE arg)
+value_counts_normalize_i(VALUE key, VALUE val, VALUE arg)
 {
   struct value_counts_normalize_params *params = (struct value_counts_normalize_params *)arg;
   double new_val;
@@ -1716,14 +1716,114 @@ ary_value_counts(int argc, VALUE* argv, VALUE ary)
   result = ary_value_counts_without_sort(ary, opts.dropna_p, &na_count, &total);
 
   if (opts.sort_p) {
-    result = ary_value_counts_sort_result(result, opts.dropna_p, opts.ascending_p);
+    result = value_counts_sort_result(result, opts.dropna_p, opts.ascending_p);
   }
 
   if (opts.normalize_p) {
     struct value_counts_normalize_params params;
     params.result = result;
     params.total = total - (opts.dropna_p ? na_count : 0);
-    rb_hash_foreach(result, ary_value_counts_normalize_i, (VALUE)&params);
+    rb_hash_foreach(result, value_counts_normalize_i, (VALUE)&params);
+  }
+
+  return result;
+}
+
+struct hash_value_counts_without_sort_params {
+  VALUE result;
+  long na_count;
+  int dropna_p;
+};
+
+static int
+hash_value_counts_without_sort_i(VALUE key, VALUE val, VALUE arg)
+{
+  struct hash_value_counts_without_sort_params *params
+    = (struct hash_value_counts_without_sort_params *)arg;
+
+  if (is_na(val)) {
+    ++params->na_count;
+
+    if (params->dropna_p) {
+      return ST_CONTINUE;
+    }
+  }
+  else {
+    VALUE cnt = rb_hash_lookup2(params->result, val, INT2FIX(0));
+    rb_hash_aset(params->result, val, rb_int_plus(cnt, INT2FIX(1)));
+  }
+
+  return ST_CONTINUE;
+}
+
+static VALUE
+hash_value_counts_without_sort(VALUE hash, int const dropna_p, long *na_count_ptr, long *total_ptr)
+{
+  struct hash_value_counts_without_sort_params params;
+  params.result = rb_hash_new();
+  params.na_count = 0;
+  params.dropna_p = dropna_p;
+
+  if (!dropna_p) {
+    rb_hash_aset(params.result, Qnil, INT2FIX(0)); // reserve the room for NA
+  }
+
+  rb_hash_foreach(hash, hash_value_counts_without_sort_i, (VALUE)&params);
+
+  if (!dropna_p) {
+    if (params.na_count == 0)
+      rb_hash_delete(params.result, Qnil);
+    else
+      rb_hash_aset(params.result, Qnil, LONG2NUM(params.na_count));
+  }
+
+  if (na_count_ptr)
+    *na_count_ptr = params.na_count;
+
+  if (total_ptr)
+    *total_ptr = (long)RHASH_SIZE(hash);
+
+  return params.result;
+}
+
+/* call-seq:
+ *    hash.value_counts(normalize: false, sort: true, ascending: false, dropna: true) -> hash
+ *
+ * Returns a hash that contains the counts of values in `ary`.
+ *
+ * This method treats `nil` and NaN, the objects who respond `true` to `nan?`,
+ * as the same thing, and stores the count of them as the value for `nil`.
+ *
+ * @param [false,true] normalize  If `true`, the result contains the relative
+ *                                frequencies of the unique values.
+ * @param [true,false] sort  Sort by values.
+ * @param [false,true] ascending  Sort in ascending order.
+ * @param [true,false] dropna  Don't include counts of NAs.
+ *
+ * @return [Hash] A hash consists of the counts of the values
+ */
+static VALUE
+hash_value_counts(int argc, VALUE* argv, VALUE ary)
+{
+  VALUE kwargs, result;
+  struct value_counts_opts opts;
+  long total, na_count;
+
+  rb_scan_args(argc, argv, ":", &kwargs);
+  value_counts_extract_opts(kwargs, &opts);
+
+  na_count = 0;
+  result = hash_value_counts_without_sort(ary, opts.dropna_p, &na_count, &total);
+
+  if (opts.sort_p) {
+    result = value_counts_sort_result(result, opts.dropna_p, opts.ascending_p);
+  }
+
+  if (opts.normalize_p) {
+    struct value_counts_normalize_params params;
+    params.result = result;
+    params.total = total - (opts.dropna_p ? na_count : 0);
+    rb_hash_foreach(result, value_counts_normalize_i, (VALUE)&params);
   }
 
   return result;
@@ -1751,6 +1851,8 @@ Init_extension(void)
   rb_define_method(rb_cArray, "mean_stdev", ary_mean_stdev, -1);
   rb_define_method(rb_cArray, "stdev", ary_stdev, -1);
   rb_define_method(rb_cArray, "value_counts", ary_value_counts, -1);
+
+  rb_define_method(rb_cHash, "value_counts", hash_value_counts, -1);
 
   half_in_rational = nurat_s_new_internal(rb_cRational, INT2FIX(1), INT2FIX(2));
   rb_gc_register_mark_object(half_in_rational);

@@ -7,4 +7,3 @@ module Enumerable
 end
 
 require_relative 'statistics/enumerable_ext'
-require_relative 'statistics/hash_ext'
