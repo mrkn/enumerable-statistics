@@ -1468,6 +1468,44 @@ ary_stdev(int argc, VALUE* argv, VALUE ary)
   return stdev;
 }
 
+struct value_counts_opts {
+  int normalize_p;
+  int sort_p;
+  int ascending_p;
+  int dropna_p;
+};
+
+static inline void
+value_counts_extract_opts(VALUE kwargs, struct value_counts_opts *opts)
+{
+  assert(opts != NULL);
+
+  /* default values */
+  opts->normalize_p = 0;
+  opts->sort_p = 1;
+  opts->ascending_p = 0;
+  opts->dropna_p = 1;
+
+  if (!NIL_P(kwargs)) {
+    enum { kw_normalize, kw_sort, kw_ascending, kw_dropna };
+    static ID kwarg_keys[4];
+    VALUE kwarg_vals[4];
+
+    if (!kwarg_keys[0]) {
+      kwarg_keys[kw_normalize] = rb_intern("normalize");
+      kwarg_keys[kw_sort]      = rb_intern("sort");
+      kwarg_keys[kw_ascending] = rb_intern("ascending");
+      kwarg_keys[kw_dropna]    = rb_intern("dropna");
+    }
+
+    rb_get_kwargs(kwargs, kwarg_keys, 0, 4, kwarg_vals);
+    opts->normalize_p = (kwarg_vals[kw_normalize] != Qundef) && RTEST(kwarg_vals[kw_normalize]);
+    opts->sort_p      = (kwarg_vals[kw_sort]      != Qundef) && RTEST(kwarg_vals[kw_sort]);
+    opts->ascending_p = (kwarg_vals[kw_ascending] != Qundef) && RTEST(kwarg_vals[kw_ascending]);
+    opts->dropna_p    = (kwarg_vals[kw_dropna]    != Qundef) && RTEST(kwarg_vals[kw_dropna]);
+  }
+}
+
 static inline int
 is_na(VALUE v)
 {
@@ -1668,40 +1706,23 @@ static VALUE
 ary_value_counts(int argc, VALUE* argv, VALUE ary)
 {
   VALUE kwargs, result;
-  int normalize_p = 0, sort_p = 1, ascending_p = 0, dropna_p = 1;
+  struct value_counts_opts opts;
   long total, na_count;
 
   rb_scan_args(argc, argv, ":", &kwargs);
-  if (!NIL_P(kwargs)) {
-    enum { kw_normalize, kw_sort, kw_ascending, kw_dropna };
-    static ID kwarg_keys[4];
-    VALUE kwarg_vals[4];
-
-    if (!kwarg_keys[0]) {
-      kwarg_keys[kw_normalize] = rb_intern("normalize");
-      kwarg_keys[kw_sort]      = rb_intern("sort");
-      kwarg_keys[kw_ascending] = rb_intern("ascending");
-      kwarg_keys[kw_dropna]    = rb_intern("dropna");
-    }
-
-    rb_get_kwargs(kwargs, kwarg_keys, 0, 4, kwarg_vals);
-    normalize_p = (kwarg_vals[kw_normalize] != Qundef) && RTEST(kwarg_vals[kw_normalize]);
-    sort_p      = (kwarg_vals[kw_sort]      != Qundef) && RTEST(kwarg_vals[kw_sort]);
-    ascending_p = (kwarg_vals[kw_ascending] != Qundef) && RTEST(kwarg_vals[kw_ascending]);
-    dropna_p    = (kwarg_vals[kw_dropna]    != Qundef) && RTEST(kwarg_vals[kw_dropna]);
-  }
+  value_counts_extract_opts(kwargs, &opts);
 
   na_count = 0;
-  result = ary_value_counts_without_sort(ary, dropna_p, &na_count, &total);
+  result = ary_value_counts_without_sort(ary, opts.dropna_p, &na_count, &total);
 
-  if (sort_p) {
-    result = ary_value_counts_sort_result(result, dropna_p, ascending_p);
+  if (opts.sort_p) {
+    result = ary_value_counts_sort_result(result, opts.dropna_p, opts.ascending_p);
   }
 
-  if (normalize_p) {
+  if (opts.normalize_p) {
     struct value_counts_normalize_params params;
     params.result = result;
-    params.total = total - (dropna_p ? na_count : 0);
+    params.total = total - (opts.dropna_p ? na_count : 0);
     rb_hash_foreach(result, ary_value_counts_normalize_i, (VALUE)&params);
   }
 
