@@ -40,6 +40,8 @@ The following methods are supplied by this library:
   - Calculates a mean and a variance simultaneously
 - `Array#mean_stdev`, `Enumerable#mean_stdev`
   - Calculates a mean and a standard deviation simultaneously
+- `Array#value_counts`, `Enumerable#value_counts`, and `Hash#value_counts`
+  - Count how many items for each value in the container
 
 Moreover, for Ruby < 2.4, `Array#sum` and `Enumerable#sum` are provided.
 
