@@ -1633,6 +1633,92 @@ value_counts_normalize_i(VALUE key, VALUE val, VALUE arg)
   return ST_CONTINUE;
 }
 
+struct enum_value_counts_without_sort_memo {
+  int dropna_p;
+  long total;
+  long na_count;
+  VALUE result;
+};
+
+static VALUE
+enum_value_counts_without_sort_i(RB_BLOCK_CALL_FUNC_ARGLIST(e, args))
+{
+  struct enum_value_counts_without_sort_memo *memo = (struct enum_value_counts_without_sort_memo *)args;
+
+  ENUM_WANT_SVALUE();
+
+  if (is_na(e)) {
+    ++memo->na_count;
+  }
+  else {
+    VALUE cnt = rb_hash_lookup2(memo->result, e, INT2FIX(0));
+    rb_hash_aset(memo->result, e, rb_int_plus(cnt, INT2FIX(1)));
+  }
+
+  ++memo->total;
+
+  return Qnil;
+}
+
+static VALUE
+enum_value_counts_without_sort(VALUE obj, int const dropna_p, long *na_count_ptr, long *total_ptr)
+{
+  struct enum_value_counts_without_sort_memo memo;
+
+  memo.dropna_p = dropna_p;
+  memo.total = 0;
+  memo.na_count = 0;
+  memo.result = rb_hash_new();
+
+  if (!dropna_p) {
+    rb_hash_aset(memo.result, Qnil, INT2FIX(0)); // reserve the room for NA
+  }
+
+  rb_block_call(obj, id_each, 0, 0, enum_value_counts_without_sort_i, (VALUE)&memo);
+
+  if (!dropna_p) {
+    if (memo.na_count == 0)
+      rb_hash_delete(memo.result, Qnil);
+    else
+      rb_hash_aset(memo.result, Qnil, LONG2NUM(memo.na_count));
+  }
+
+  if (na_count_ptr)
+    *na_count_ptr = memo.na_count;
+
+  if (total_ptr)
+    *total_ptr = memo.total;
+
+  return memo.result;
+}
+
+static VALUE
+enum_value_counts(int argc, VALUE* argv, VALUE obj)
+{
+  VALUE kwargs, result;
+  struct value_counts_opts opts;
+  long total, na_count;
+
+  rb_scan_args(argc, argv, ":", &kwargs);
+  value_counts_extract_opts(kwargs, &opts);
+
+  na_count = 0;
+  result = enum_value_counts_without_sort(obj, opts.dropna_p, &na_count, &total);
+
+  if (opts.sort_p) {
+    result = value_counts_sort_result(result, opts.dropna_p, opts.ascending_p);
+  }
+
+  if (opts.normalize_p) {
+    struct value_counts_normalize_params params;
+    params.result = result;
+    params.total = total - (opts.dropna_p ? na_count : 0);
+    rb_hash_foreach(result, value_counts_normalize_i, (VALUE)&params);
+  }
+
+  return result;
+}
+
 static VALUE
 ary_value_counts_without_sort(VALUE ary, int const dropna_p, long *na_count_ptr, long *total_ptr)
 {
@@ -1841,6 +1927,7 @@ Init_extension(void)
   rb_define_method(rb_mEnumerable, "variance", enum_variance, -1);
   rb_define_method(rb_mEnumerable, "mean_stdev", enum_mean_stdev, -1);
   rb_define_method(rb_mEnumerable, "stdev", enum_stdev, -1);
+  rb_define_method(rb_mEnumerable, "value_counts", enum_value_counts, -1);
 
 #ifndef HAVE_ARRAY_SUM
   rb_define_method(rb_cArray, "sum", ary_sum, -1);
