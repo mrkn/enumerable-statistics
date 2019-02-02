@@ -1521,59 +1521,6 @@ is_na(VALUE v)
   return 0;
 }
 
-static VALUE
-ary_value_counts_without_sort(VALUE ary, int const dropna_p, long *na_count_ptr, long *total_ptr)
-{
-  const VALUE zero = INT2FIX(0);
-  const VALUE one = INT2FIX(1);
-  VALUE result = rb_hash_new();
-  long i, na_count = 0;
-  long const n = RARRAY_LEN(ary);
-
-  if (dropna_p) {
-    for (i = 0; i < n; ++i) {
-      VALUE cnt, val;
-
-      val = RARRAY_AREF(ary, i);
-      if (is_na(val)) {
-        ++na_count;
-        continue;
-      }
-
-      cnt = rb_hash_lookup2(result, val, zero);
-      rb_hash_aset(result, val, rb_int_plus(cnt, one));
-    }
-  }
-  else {
-    rb_hash_aset(result, Qnil, zero); // reserve the room for NA
-
-    for (i = 0; i < n; ++i) {
-      VALUE val = RARRAY_AREF(ary, i);
-
-      if (is_na(val)) {
-        ++na_count;
-      }
-      else {
-        VALUE cnt = rb_hash_lookup2(result, val, zero);
-        rb_hash_aset(result, val, rb_int_plus(cnt, one));
-      }
-    }
-
-    if (na_count == 0)
-      rb_hash_delete(result, Qnil);
-    else
-      rb_hash_aset(result, Qnil, LONG2NUM(na_count));
-  }
-
-  if (na_count_ptr)
-    *na_count_ptr = na_count;
-
-  if (total_ptr)
-    *total_ptr = n;
-
-  return result;
-}
-
 static int
 value_counts_result_to_assoc_array_i(VALUE key, VALUE val, VALUE ary)
 {
@@ -1684,6 +1631,59 @@ value_counts_normalize_i(VALUE key, VALUE val, VALUE arg)
   rb_hash_aset(params->result, key, DBL2NUM(new_val));
 
   return ST_CONTINUE;
+}
+
+static VALUE
+ary_value_counts_without_sort(VALUE ary, int const dropna_p, long *na_count_ptr, long *total_ptr)
+{
+  const VALUE zero = INT2FIX(0);
+  const VALUE one = INT2FIX(1);
+  VALUE result = rb_hash_new();
+  long i, na_count = 0;
+  long const n = RARRAY_LEN(ary);
+
+  if (dropna_p) {
+    for (i = 0; i < n; ++i) {
+      VALUE cnt, val;
+
+      val = RARRAY_AREF(ary, i);
+      if (is_na(val)) {
+        ++na_count;
+        continue;
+      }
+
+      cnt = rb_hash_lookup2(result, val, zero);
+      rb_hash_aset(result, val, rb_int_plus(cnt, one));
+    }
+  }
+  else {
+    rb_hash_aset(result, Qnil, zero); // reserve the room for NA
+
+    for (i = 0; i < n; ++i) {
+      VALUE val = RARRAY_AREF(ary, i);
+
+      if (is_na(val)) {
+        ++na_count;
+      }
+      else {
+        VALUE cnt = rb_hash_lookup2(result, val, zero);
+        rb_hash_aset(result, val, rb_int_plus(cnt, one));
+      }
+    }
+
+    if (na_count == 0)
+      rb_hash_delete(result, Qnil);
+    else
+      rb_hash_aset(result, Qnil, LONG2NUM(na_count));
+  }
+
+  if (na_count_ptr)
+    *na_count_ptr = na_count;
+
+  if (total_ptr)
+    *total_ptr = n;
+
+  return result;
 }
 
 /* call-seq:
