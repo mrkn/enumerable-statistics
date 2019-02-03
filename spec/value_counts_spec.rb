@@ -2,6 +2,14 @@ require 'spec_helper'
 require 'enumerable/statistics'
 
 RSpec.shared_examples_for 'value_counts' do
+  let(:values) do
+    'bggbafgeeebgbbaccdgdgdbbgbgffbaffggcegbf'.chars.tap do |ary|
+      ary[5, 0] = nil
+      ary[15, 0] = nil
+      ary[20, 0] = nil
+    end
+  end
+
   matrix = [
     { normalize: false, sort: true,  ascending: false, dropna: true,
       result: {"g"=>11, "b"=>10, "f"=>6, "e"=>4, "a"=>3, "c"=>3, "d"=>3} },
@@ -58,13 +66,7 @@ end
 
 RSpec.describe Array do
   describe '#value_counts' do
-    let(:receiver) do
-      'bggbafgeeebgbbaccdgdgdbbgbgffbaffggcegbf'.chars.tap do |ary|
-        ary[5, 0] = nil
-        ary[15, 0] = nil
-        ary[20, 0] = nil
-      end
-    end
+    let(:receiver) { values }
 
     include_examples 'value_counts'
   end
@@ -72,16 +74,8 @@ end
 
 RSpec.describe Hash do
   describe '#value_counts' do
-    let(:array) do
-      'bggbafgeeebgbbaccdgdgdbbgbgffbaffggcegbf'.chars.tap do |ary|
-        ary[5, 0] = nil
-        ary[15, 0] = nil
-        ary[20, 0] = nil
-      end
-    end
-
     let(:receiver) do
-      array.map.with_index {|x, i| [i, x] }.to_h
+      values.map.with_index {|x, i| [i, x] }.to_h
     end
 
     include_examples 'value_counts'
@@ -90,17 +84,7 @@ end
 
 RSpec.describe Enumerable do
   describe '#value_counts' do
-    let(:array) do
-      'bggbafgeeebgbbaccdgdgdbbgbgffbaffggcegbf'.chars.tap do |ary|
-        ary[5, 0] = nil
-        ary[15, 0] = nil
-        ary[20, 0] = nil
-      end
-    end
-
-    let(:receiver) do
-      array.each
-    end
+    let(:receiver) { values.each }
 
     include_examples 'value_counts'
   end
