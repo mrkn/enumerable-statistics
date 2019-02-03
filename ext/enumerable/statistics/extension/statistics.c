@@ -1633,7 +1633,7 @@ value_counts_normalize_i(VALUE key, VALUE val, VALUE arg)
   return ST_CONTINUE;
 }
 
-struct enum_value_counts_without_sort_memo {
+struct value_counts_memo {
   int dropna_p;
   long total;
   long na_count;
@@ -1641,40 +1641,21 @@ struct enum_value_counts_without_sort_memo {
 };
 
 static VALUE
-enum_value_counts_without_sort_i(RB_BLOCK_CALL_FUNC_ARGLIST(e, args))
+value_counts_without_sort(VALUE obj, void (* counter)(VALUE, struct value_counts_memo *),
+                          int const dropna_p, long *na_count_ptr, long *total_ptr)
 {
-  struct enum_value_counts_without_sort_memo *memo = (struct enum_value_counts_without_sort_memo *)args;
+  struct value_counts_memo memo;
 
-  ENUM_WANT_SVALUE();
-
-  if (is_na(e)) {
-    ++memo->na_count;
-  }
-  else {
-    VALUE cnt = rb_hash_lookup2(memo->result, e, INT2FIX(0));
-    rb_hash_aset(memo->result, e, rb_int_plus(cnt, INT2FIX(1)));
-  }
-
-  ++memo->total;
-
-  return Qnil;
-}
-
-static VALUE
-enum_value_counts_without_sort(VALUE obj, int const dropna_p, long *na_count_ptr, long *total_ptr)
-{
-  struct enum_value_counts_without_sort_memo memo;
-
-  memo.dropna_p = dropna_p;
+  memo.result = rb_hash_new();
   memo.total = 0;
   memo.na_count = 0;
-  memo.result = rb_hash_new();
+  memo.dropna_p = dropna_p;
 
   if (!dropna_p) {
     rb_hash_aset(memo.result, Qnil, INT2FIX(0)); // reserve the room for NA
   }
 
-  rb_block_call(obj, id_each, 0, 0, enum_value_counts_without_sort_i, (VALUE)&memo);
+  counter(obj, &memo);
 
   if (!dropna_p) {
     if (memo.na_count == 0)
@@ -1693,6 +1674,32 @@ enum_value_counts_without_sort(VALUE obj, int const dropna_p, long *na_count_ptr
 }
 
 static VALUE
+enum_value_counts_without_sort_i(RB_BLOCK_CALL_FUNC_ARGLIST(e, args))
+{
+  struct value_counts_memo *memo = (struct value_counts_memo *)args;
+
+  ENUM_WANT_SVALUE();
+
+  if (is_na(e)) {
+    ++memo->na_count;
+  }
+  else {
+    VALUE cnt = rb_hash_lookup2(memo->result, e, INT2FIX(0));
+    rb_hash_aset(memo->result, e, rb_int_plus(cnt, INT2FIX(1)));
+  }
+
+  ++memo->total;
+
+  return Qnil;
+}
+
+static void
+enum_value_counts_without_sort(VALUE obj, struct value_counts_memo *memo)
+{
+  rb_block_call(obj, id_each, 0, 0, enum_value_counts_without_sort_i, (VALUE)memo);
+}
+
+static VALUE
 enum_value_counts(int argc, VALUE* argv, VALUE obj)
 {
   VALUE kwargs, result;
@@ -1703,7 +1710,8 @@ enum_value_counts(int argc, VALUE* argv, VALUE obj)
   value_counts_extract_opts(kwargs, &opts);
 
   na_count = 0;
-  result = enum_value_counts_without_sort(obj, opts.dropna_p, &na_count, &total);
+  result = value_counts_without_sort(obj, enum_value_counts_without_sort,
+                                     opts.dropna_p, &na_count, &total);
 
   if (opts.sort_p) {
     result = value_counts_sort_result(result, opts.dropna_p, opts.ascending_p);
@@ -1719,57 +1727,28 @@ enum_value_counts(int argc, VALUE* argv, VALUE obj)
   return result;
 }
 
-static VALUE
-ary_value_counts_without_sort(VALUE ary, int const dropna_p, long *na_count_ptr, long *total_ptr)
+static void
+ary_value_counts_without_sort(VALUE ary, struct value_counts_memo *memo)
 {
   const VALUE zero = INT2FIX(0);
   const VALUE one = INT2FIX(1);
-  VALUE result = rb_hash_new();
   long i, na_count = 0;
   long const n = RARRAY_LEN(ary);
 
-  if (dropna_p) {
-    for (i = 0; i < n; ++i) {
-      VALUE cnt, val;
+  for (i = 0; i < n; ++i) {
+    VALUE val = RARRAY_AREF(ary, i);
 
-      val = RARRAY_AREF(ary, i);
-      if (is_na(val)) {
-        ++na_count;
-        continue;
-      }
-
-      cnt = rb_hash_lookup2(result, val, zero);
-      rb_hash_aset(result, val, rb_int_plus(cnt, one));
+    if (is_na(val)) {
+      ++na_count;
+    }
+    else {
+      VALUE cnt = rb_hash_lookup2(memo->result, val, zero);
+      rb_hash_aset(memo->result, val, rb_int_plus(cnt, one));
     }
   }
-  else {
-    rb_hash_aset(result, Qnil, zero); // reserve the room for NA
 
-    for (i = 0; i < n; ++i) {
-      VALUE val = RARRAY_AREF(ary, i);
-
-      if (is_na(val)) {
-        ++na_count;
-      }
-      else {
-        VALUE cnt = rb_hash_lookup2(result, val, zero);
-        rb_hash_aset(result, val, rb_int_plus(cnt, one));
-      }
-    }
-
-    if (na_count == 0)
-      rb_hash_delete(result, Qnil);
-    else
-      rb_hash_aset(result, Qnil, LONG2NUM(na_count));
-  }
-
-  if (na_count_ptr)
-    *na_count_ptr = na_count;
-
-  if (total_ptr)
-    *total_ptr = n;
-
-  return result;
+  memo->total = n;
+  memo->na_count = na_count;
 }
 
 /* call-seq:
@@ -1799,7 +1778,8 @@ ary_value_counts(int argc, VALUE* argv, VALUE ary)
   value_counts_extract_opts(kwargs, &opts);
 
   na_count = 0;
-  result = ary_value_counts_without_sort(ary, opts.dropna_p, &na_count, &total);
+  result = value_counts_without_sort(ary, ary_value_counts_without_sort,
+                                     opts.dropna_p, &na_count, &total);
 
   if (opts.sort_p) {
     result = value_counts_sort_result(result, opts.dropna_p, opts.ascending_p);
@@ -1815,67 +1795,37 @@ ary_value_counts(int argc, VALUE* argv, VALUE ary)
   return result;
 }
 
-struct hash_value_counts_without_sort_params {
-  VALUE result;
-  long na_count;
-  int dropna_p;
-};
-
 static int
 hash_value_counts_without_sort_i(VALUE key, VALUE val, VALUE arg)
 {
-  struct hash_value_counts_without_sort_params *params
-    = (struct hash_value_counts_without_sort_params *)arg;
+  struct value_counts_memo *memo = (struct value_counts_memo *)arg;
 
   if (is_na(val)) {
-    ++params->na_count;
+    ++memo->na_count;
 
-    if (params->dropna_p) {
+    if (memo->dropna_p) {
       return ST_CONTINUE;
     }
   }
   else {
-    VALUE cnt = rb_hash_lookup2(params->result, val, INT2FIX(0));
-    rb_hash_aset(params->result, val, rb_int_plus(cnt, INT2FIX(1)));
+    VALUE cnt = rb_hash_lookup2(memo->result, val, INT2FIX(0));
+    rb_hash_aset(memo->result, val, rb_int_plus(cnt, INT2FIX(1)));
   }
 
   return ST_CONTINUE;
 }
 
-static VALUE
-hash_value_counts_without_sort(VALUE hash, int const dropna_p, long *na_count_ptr, long *total_ptr)
+static void
+hash_value_counts_without_sort(VALUE hash, struct value_counts_memo *memo)
 {
-  struct hash_value_counts_without_sort_params params;
-  params.result = rb_hash_new();
-  params.na_count = 0;
-  params.dropna_p = dropna_p;
-
-  if (!dropna_p) {
-    rb_hash_aset(params.result, Qnil, INT2FIX(0)); // reserve the room for NA
-  }
-
-  rb_hash_foreach(hash, hash_value_counts_without_sort_i, (VALUE)&params);
-
-  if (!dropna_p) {
-    if (params.na_count == 0)
-      rb_hash_delete(params.result, Qnil);
-    else
-      rb_hash_aset(params.result, Qnil, LONG2NUM(params.na_count));
-  }
-
-  if (na_count_ptr)
-    *na_count_ptr = params.na_count;
-
-  if (total_ptr)
-    *total_ptr = (long)RHASH_SIZE(hash);
-
-  return params.result;
+  rb_hash_foreach(hash, hash_value_counts_without_sort_i, (VALUE)memo);
+  memo->total = RHASH_SIZE(hash);
 }
 
 /* call-seq:
  *    hash.value_counts(normalize: false, sort: true, ascending: false, dropna: true) -> hash
  *
- * Returns a hash that contains the counts of values in `ary`.
+ * Returns a hash that contains the counts of values in `hash`.
  *
  * This method treats `nil` and NaN, the objects who respond `true` to `nan?`,
  * as the same thing, and stores the count of them as the value for `nil`.
@@ -1889,7 +1839,7 @@ hash_value_counts_without_sort(VALUE hash, int const dropna_p, long *na_count_pt
  * @return [Hash] A hash consists of the counts of the values
  */
 static VALUE
-hash_value_counts(int argc, VALUE* argv, VALUE ary)
+hash_value_counts(int argc, VALUE* argv, VALUE hash)
 {
   VALUE kwargs, result;
   struct value_counts_opts opts;
@@ -1899,7 +1849,8 @@ hash_value_counts(int argc, VALUE* argv, VALUE ary)
   value_counts_extract_opts(kwargs, &opts);
 
   na_count = 0;
-  result = hash_value_counts_without_sort(ary, opts.dropna_p, &na_count, &total);
+  result = value_counts_without_sort(hash, hash_value_counts_without_sort,
+                                     opts.dropna_p, &na_count, &total);
 
   if (opts.sort_p) {
     result = value_counts_sort_result(result, opts.dropna_p, opts.ascending_p);
