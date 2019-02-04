@@ -28,6 +28,25 @@ enum_stat_integer_type_p(VALUE obj)
 }
 #endif
 
+#ifndef FIXNUM_NEGATIVE_P
+# define FIXNUM_NEGATIVE_P(num) ((SIGNED_VALUE)(num) < 0)
+#endif
+
+#ifndef BIGNUM_SIGN_BIT
+# define BIGNUM_SIGN_BIT ((VALUE)FL_USER1)
+/* sign: positive:1, negative:0 */
+#endif
+#ifndef BIGNUM_SIGN
+# define BIGNUM_SIGN(b) ((RBASIC(b)->flags & BIGNUM_SIGN_BIT) != 0)
+#endif
+#ifndef BIGNUM_NEGATIVE_P
+# define BIGNUM_NEGATIVE_P(b) (!BIGNUM_SIGN(b))
+#endif
+
+#ifndef INT_NEGATIVE_P
+# define INT_NEGATIVE_P(x) (FIXNUM_P(x) ? FIXNUM_NEGATIVE_P(x) : BIGNUM_NEGATIVE_P(x))
+#endif
+
 #ifndef HAVE_TYPE_STRUCT_RRATIONAL
 struct RRational {
     struct RBasic basic;
@@ -1468,11 +1487,53 @@ ary_stdev(int argc, VALUE* argv, VALUE ary)
   return stdev;
 }
 
+static VALUE
+value_counts_check_convert_bins(VALUE bins)
+{
+  VALUE int_bins, ary_bins;
+  long n;
+
+  if (bins == Qundef || NIL_P(bins)) {
+    return Qnil;
+  }
+
+  if (RB_TYPE_P(bins, T_RATIONAL)) {
+    VALUE den = rb_rational_den(bins);
+    if (INT2FIX(1) == den) {
+      bins = rb_rational_num(bins);
+    }
+  }
+
+  int_bins = rb_check_to_int(bins);
+
+  if (RB_INTEGER_TYPE_P(int_bins)) {
+    if (INT_NEGATIVE_P(int_bins) || INT2FIX(0) == int_bins) {
+      rb_raise(rb_eArgError, "`bins:` must be positive integer");
+    }
+    return int_bins;
+  }
+
+  ary_bins = rb_check_array_type(bins);
+  if (NIL_P(ary_bins)) {
+    rb_raise(rb_eArgError, "invalid value for `bins:` (Integer or Array)");
+  }
+
+  bins = ary_bins;
+  n = RARRAY_LEN(bins);
+  if (n == 0) {
+    rb_raise(rb_eArgError, "empty array for `bins:`");
+  }
+
+  /* TODO: support array bins */
+  rb_raise(rb_eNotImpError, "array bins not supported yet");
+}
+
 struct value_counts_opts {
   int normalize_p;
   int sort_p;
   int ascending_p;
   int dropna_p;
+  VALUE bins;
 };
 
 static inline void
@@ -1485,24 +1546,28 @@ value_counts_extract_opts(VALUE kwargs, struct value_counts_opts *opts)
   opts->sort_p = 1;
   opts->ascending_p = 0;
   opts->dropna_p = 1;
+  opts->bins = Qnil;
 
   if (!NIL_P(kwargs)) {
-    enum { kw_normalize, kw_sort, kw_ascending, kw_dropna };
-    static ID kwarg_keys[4];
-    VALUE kwarg_vals[4];
+    enum { kw_normalize, kw_sort, kw_ascending, kw_dropna, kw_bins, num_kwds };
+    static ID kwarg_keys[num_kwds];
+    VALUE kwarg_vals[num_kwds];
 
     if (!kwarg_keys[0]) {
       kwarg_keys[kw_normalize] = rb_intern("normalize");
       kwarg_keys[kw_sort]      = rb_intern("sort");
       kwarg_keys[kw_ascending] = rb_intern("ascending");
       kwarg_keys[kw_dropna]    = rb_intern("dropna");
+      kwarg_keys[kw_bins]      = rb_intern("bins");
     }
 
-    rb_get_kwargs(kwargs, kwarg_keys, 0, 4, kwarg_vals);
+    rb_get_kwargs(kwargs, kwarg_keys, 0, num_kwds, kwarg_vals);
     opts->normalize_p = (kwarg_vals[kw_normalize] != Qundef) && RTEST(kwarg_vals[kw_normalize]);
     opts->sort_p      = (kwarg_vals[kw_sort]      != Qundef) && RTEST(kwarg_vals[kw_sort]);
     opts->ascending_p = (kwarg_vals[kw_ascending] != Qundef) && RTEST(kwarg_vals[kw_ascending]);
     opts->dropna_p    = (kwarg_vals[kw_dropna]    != Qundef) && RTEST(kwarg_vals[kw_dropna]);
+
+    opts->bins = value_counts_check_convert_bins(kwarg_vals[kw_bins]);
   }
 }
 
