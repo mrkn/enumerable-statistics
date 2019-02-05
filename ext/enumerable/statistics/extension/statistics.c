@@ -1641,34 +1641,44 @@ struct value_counts_memo {
 };
 
 static VALUE
-value_counts_without_sort(VALUE obj, void (* counter)(VALUE, struct value_counts_memo *),
-                          int const dropna_p, long *na_count_ptr, long *total_ptr)
+any_value_counts(int argc, VALUE *argv, VALUE obj,
+                 void (* counter)(VALUE, struct value_counts_memo *))
 {
+  VALUE kwargs;
+  struct value_counts_opts opts;
   struct value_counts_memo memo;
+
+  rb_scan_args(argc, argv, ":", &kwargs);
+  value_counts_extract_opts(kwargs, &opts);
 
   memo.result = rb_hash_new();
   memo.total = 0;
   memo.na_count = 0;
-  memo.dropna_p = dropna_p;
+  memo.dropna_p = opts.dropna_p;
 
-  if (!dropna_p) {
+  if (!opts.dropna_p) {
     rb_hash_aset(memo.result, Qnil, INT2FIX(0)); // reserve the room for NA
   }
 
   counter(obj, &memo);
 
-  if (!dropna_p) {
+  if (!opts.dropna_p) {
     if (memo.na_count == 0)
       rb_hash_delete(memo.result, Qnil);
     else
       rb_hash_aset(memo.result, Qnil, LONG2NUM(memo.na_count));
   }
 
-  if (na_count_ptr)
-    *na_count_ptr = memo.na_count;
+  if (opts.sort_p) {
+    memo.result = value_counts_sort_result(memo.result, opts.dropna_p, opts.ascending_p);
+  }
 
-  if (total_ptr)
-    *total_ptr = memo.total;
+  if (opts.normalize_p) {
+    struct value_counts_normalize_params params;
+    params.result = memo.result;
+    params.total = memo.total - (opts.dropna_p ? memo.na_count : 0);
+    rb_hash_foreach(memo.result, value_counts_normalize_i, (VALUE)&params);
+  }
 
   return memo.result;
 }
@@ -1702,29 +1712,7 @@ enum_value_counts_without_sort(VALUE obj, struct value_counts_memo *memo)
 static VALUE
 enum_value_counts(int argc, VALUE* argv, VALUE obj)
 {
-  VALUE kwargs, result;
-  struct value_counts_opts opts;
-  long total, na_count;
-
-  rb_scan_args(argc, argv, ":", &kwargs);
-  value_counts_extract_opts(kwargs, &opts);
-
-  na_count = 0;
-  result = value_counts_without_sort(obj, enum_value_counts_without_sort,
-                                     opts.dropna_p, &na_count, &total);
-
-  if (opts.sort_p) {
-    result = value_counts_sort_result(result, opts.dropna_p, opts.ascending_p);
-  }
-
-  if (opts.normalize_p) {
-    struct value_counts_normalize_params params;
-    params.result = result;
-    params.total = total - (opts.dropna_p ? na_count : 0);
-    rb_hash_foreach(result, value_counts_normalize_i, (VALUE)&params);
-  }
-
-  return result;
+  return any_value_counts(argc, argv, obj, enum_value_counts_without_sort);
 }
 
 static void
@@ -1770,29 +1758,7 @@ ary_value_counts_without_sort(VALUE ary, struct value_counts_memo *memo)
 static VALUE
 ary_value_counts(int argc, VALUE* argv, VALUE ary)
 {
-  VALUE kwargs, result;
-  struct value_counts_opts opts;
-  long total, na_count;
-
-  rb_scan_args(argc, argv, ":", &kwargs);
-  value_counts_extract_opts(kwargs, &opts);
-
-  na_count = 0;
-  result = value_counts_without_sort(ary, ary_value_counts_without_sort,
-                                     opts.dropna_p, &na_count, &total);
-
-  if (opts.sort_p) {
-    result = value_counts_sort_result(result, opts.dropna_p, opts.ascending_p);
-  }
-
-  if (opts.normalize_p) {
-    struct value_counts_normalize_params params;
-    params.result = result;
-    params.total = total - (opts.dropna_p ? na_count : 0);
-    rb_hash_foreach(result, value_counts_normalize_i, (VALUE)&params);
-  }
-
-  return result;
+  return any_value_counts(argc, argv, ary, ary_value_counts_without_sort);
 }
 
 static int
@@ -1841,29 +1807,7 @@ hash_value_counts_without_sort(VALUE hash, struct value_counts_memo *memo)
 static VALUE
 hash_value_counts(int argc, VALUE* argv, VALUE hash)
 {
-  VALUE kwargs, result;
-  struct value_counts_opts opts;
-  long total, na_count;
-
-  rb_scan_args(argc, argv, ":", &kwargs);
-  value_counts_extract_opts(kwargs, &opts);
-
-  na_count = 0;
-  result = value_counts_without_sort(hash, hash_value_counts_without_sort,
-                                     opts.dropna_p, &na_count, &total);
-
-  if (opts.sort_p) {
-    result = value_counts_sort_result(result, opts.dropna_p, opts.ascending_p);
-  }
-
-  if (opts.normalize_p) {
-    struct value_counts_normalize_params params;
-    params.result = result;
-    params.total = total - (opts.dropna_p ? na_count : 0);
-    rb_hash_foreach(result, value_counts_normalize_i, (VALUE)&params);
-  }
-
-  return result;
+  return any_value_counts(argc, argv, hash, hash_value_counts_without_sort);
 }
 
 void
