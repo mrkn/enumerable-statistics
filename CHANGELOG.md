@@ -1,6 +1,6 @@
 # master
 
-- Add `value_counts` method in Array class
+- Add `value_counts` method in Array, Hash, and Enumerable
 
 # 1.0.1
 
