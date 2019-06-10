@@ -1468,6 +1468,99 @@ ary_stdev(int argc, VALUE* argv, VALUE ary)
   return stdev;
 }
 
+static inline int
+is_na(VALUE v)
+{
+  if (NIL_P(v))
+    return 1;
+
+  if (RB_FLOAT_TYPE_P(v) && isnan(RFLOAT_VALUE(v)))
+    return 1;
+
+  if (rb_respond_to(v, id_nan_p) && RTEST(rb_funcall(v, id_nan_p, 0)))
+    return 1;
+
+  return 0;
+}
+
+static int
+ary_median_sort_cmp(const void *ap, const void *bp, void *dummy)
+{
+  VALUE a = *(const VALUE *)ap, b = *(const VALUE *)bp;
+  VALUE cmp;
+
+  if (is_na(a)) {
+    return -1;
+  }
+  else if (is_na(b)) {
+    return 1;
+  }
+
+  /* TODO: optimize */
+  cmp = rb_funcall(a, id_cmp, 1, b);
+  return rb_cmpint(cmp, a, b);
+}
+
+/* call-seq:
+ *    ary.median -> float
+ *
+ * Calculate a median of the values in `ary`.
+ *
+ * @return [Float] A median value
+ */
+static VALUE
+ary_median(VALUE ary)
+{
+  long i, n;
+  VALUE sorted, a0, a1;
+
+  n = RARRAY_LEN(ary);
+  switch (n) {
+    case 0:
+      goto return_nan;
+    case 1:
+      return RARRAY_AREF(ary, 0);
+    case 2:
+      a0 = RARRAY_AREF(ary, 0);
+      a1 = RARRAY_AREF(ary, 1);
+      goto mean_two;
+    default:
+      break;
+  }
+
+  sorted = rb_ary_tmp_new(n);
+  for (i = 0; i < n; ++i) {
+    rb_ary_push(sorted, RARRAY_AREF(ary, i));
+  }
+  RARRAY_PTR_USE(sorted, ptr, {
+    ruby_qsort(ptr, RARRAY_LEN(sorted), sizeof(VALUE),
+               ary_median_sort_cmp, NULL);
+  });
+
+  a0 = RARRAY_AREF(sorted, 0);
+  if (is_na(a0)) {
+return_nan:
+    return DBL2NUM(nan(""));
+  }
+
+  a1 = RARRAY_AREF(sorted, n / 2);
+  if (n % 2 == 1) {
+    return a1;
+  }
+  else {
+    a0 = RARRAY_AREF(sorted, n / 2 - 1);
+
+mean_two:
+    a0 = rb_funcall(a0, idPLUS, 1, a1); /* TODO: optimize */
+    if (RB_INTEGER_TYPE_P(a0) || RB_FLOAT_TYPE_P(a0) || RB_TYPE_P(a0, T_RATIONAL)) {
+      double d = NUM2DBL(a0);
+      return DBL2NUM(d / 2.0);
+    }
+
+    return rb_funcall(a0, idDIV, 1, DBL2NUM(2.0));
+  }
+}
+
 struct value_counts_opts {
   int normalize_p;
   int sort_p;
@@ -1504,21 +1597,6 @@ value_counts_extract_opts(VALUE kwargs, struct value_counts_opts *opts)
     opts->ascending_p = (kwarg_vals[kw_ascending] != Qundef) && RTEST(kwarg_vals[kw_ascending]);
     opts->dropna_p    = (kwarg_vals[kw_dropna]    != Qundef) && RTEST(kwarg_vals[kw_dropna]);
   }
-}
-
-static inline int
-is_na(VALUE v)
-{
-  if (NIL_P(v))
-    return 1;
-
-  if (RB_FLOAT_TYPE_P(v) && isnan(RFLOAT_VALUE(v)))
-    return 1;
-
-  if (rb_respond_to(v, id_nan_p) && RTEST(rb_funcall(v, id_nan_p, 0)))
-    return 1;
-
-  return 0;
 }
 
 static int
@@ -1832,6 +1910,7 @@ Init_extension(void)
   rb_define_method(rb_cArray, "variance", ary_variance, -1);
   rb_define_method(rb_cArray, "mean_stdev", ary_mean_stdev, -1);
   rb_define_method(rb_cArray, "stdev", ary_stdev, -1);
+  rb_define_method(rb_cArray, "median", ary_median, 0);
   rb_define_method(rb_cArray, "value_counts", ary_value_counts, -1);
 
   rb_define_method(rb_cHash, "value_counts", hash_value_counts, -1);
