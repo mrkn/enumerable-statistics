@@ -2,9 +2,16 @@
 lib = File.expand_path('../lib', __FILE__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 
+require 'enumerable_statistics/version'
+
 Gem::Specification.new do |spec|
   spec.name          = "enumerable-statistics"
-  spec.version       = '1.1.0.dev'
+  spec.version       = [
+                         EnumerableStatistics::Version::MAJOR,
+                         EnumerableStatistics::Version::MINOR,
+                         EnumerableStatistics::Version::MICRO,
+                         EnumerableStatistics::Version::TAG
+                       ].compact.join('.')
   spec.authors       = ["Kenta Murata"]
   spec.email         = ["mrkn@mrkn.jp"]
 
