@@ -1523,7 +1523,8 @@ static inline VALUE
 ary_percentile_single_sorted(VALUE sorted, long n, double d)
 {
   VALUE x0, x1;
-  long i;
+  double i, f;
+  long l;
 
   assert(RB_TYPE_P(sorted, T_ARRAY));
   assert(n == RARRAY_LEN(sorted));
@@ -1543,14 +1544,17 @@ ary_percentile_single_sorted(VALUE sorted, long n, double d)
   }
 
   d = (n - 1) * d / 100.0;
-  i = (long)floor(d);
-  d -= i;
+  f = modf(d, &i);
+  l = (long)i;
 
-  x0 = RARRAY_AREF(sorted, i);
-  x0 = rb_funcall(x0, idSTAR, 1, DBL2NUM(1 - d));
+  x0 = RARRAY_AREF(sorted, l);
+  if (f == 0 || l == n - 1) {
+    return x0;
+  }
 
-  x1 = RARRAY_AREF(sorted, i + 1);
-  x1 = rb_funcall(x1, idSTAR, 1, DBL2NUM(d));
+  x0 = rb_funcall(x0, idSTAR, 1, DBL2NUM(1 - f));
+  x1 = RARRAY_AREF(sorted, l + 1);
+  x1 = rb_funcall(x1, idSTAR, 1, DBL2NUM(f));
 
   return rb_funcall(x0, idPLUS, 1, x1);
 }
