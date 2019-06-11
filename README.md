@@ -40,6 +40,10 @@ The following methods are supplied by this library:
   - Calculates a mean and a variance simultaneously
 - `Array#mean_stdev`, `Enumerable#mean_stdev`
   - Calculates a mean and a standard deviation simultaneously
+- `Array#median`
+  - Calculates a median of values in an array
+- `Array#percentile(q)`
+  - Calculates a percentile or percentiles of values in an array
 - `Array#value_counts`, `Enumerable#value_counts`, and `Hash#value_counts`
   - Count how many items for each value in the container
 
