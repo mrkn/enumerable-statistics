@@ -2,6 +2,7 @@
 #include <ruby/util.h>
 #include <ruby/version.h>
 #include <assert.h>
+#include <math.h>
 
 #if RUBY_API_VERSION_CODE >= 20400
 /* for 2.4.0 or higher */
@@ -15,6 +16,12 @@
 # undef HAVE_ENUM_SUM
 # undef HAVE_RB_FIX_PLUS
 # undef HAVE_RB_RATIONAL_PLUS
+#endif
+
+#ifdef HAVE_RB_ARITHMETIC_SEQUENCE_EXTRACT
+# define HAVE_ARITHMETIC_SEQUENCE
+#else
+# undef HAVE_ARITHMETIC_SEQUENCE
 #endif
 
 #ifndef RB_INTEGER_TYPE_P
@@ -88,7 +95,11 @@ static VALUE half_in_rational;
 
 static ID idPow, idPLUS, idMINUS, idSTAR, idDIV, idGE;
 static ID id_eqeq_p, id_idiv, id_negate, id_to_f, id_cmp, id_nan_p;
-static ID id_each, id_real_p, id_sum, id_population;
+static ID id_each, id_real_p, id_sum, id_population, id_closed, id_edge;
+
+static VALUE sym_left, sym_right;
+
+static VALUE cHistogram;
 
 inline static VALUE
 f_add(VALUE x, VALUE y)
@@ -2051,9 +2062,253 @@ hash_value_counts(int argc, VALUE* argv, VALUE hash)
   return any_value_counts(argc, argv, hash, hash_value_counts_without_sort);
 }
 
+static long
+histogram_edge_bin_index(VALUE edge, VALUE rb_x, int left_p)
+{
+  double x, y;
+  long lo, hi, mid;
+
+  x = NUM2DBL(rb_x);
+
+  lo = -1;
+  hi = RARRAY_LEN(edge);
+
+  if (left_p) {
+    while (hi - lo > 1) {
+      mid = lo + (hi - lo)/2;
+      y = NUM2DBL(RARRAY_AREF(edge, mid));
+      if (y <= x) {
+        lo = mid;
+      }
+      else {
+        hi = mid;
+      }
+    }
+    return lo;
+  }
+  else {
+    while (hi - lo > 1) {
+      mid = lo + (hi - lo)/2;
+      y = NUM2DBL(RARRAY_AREF(edge, mid));
+      if (y < x) {
+        lo = mid;
+      }
+      else {
+        hi = mid;
+      }
+    }
+    return hi - 1;
+  }
+}
+
+static void
+histogram_weights_push_values(VALUE weights, VALUE edge, VALUE values, int left_p)
+{
+  VALUE x, cur;
+  long i, n, bi;
+
+  n = RARRAY_LEN(values);
+  for (i = 0; i < n; ++i) {
+    x = RARRAY_AREF(values, i);
+
+    bi = histogram_edge_bin_index(edge, x, left_p);
+
+    cur = rb_ary_entry(weights, bi);
+    if (NIL_P(cur)) {
+      cur = INT2FIX(1);
+    }
+    else {
+      cur = rb_funcall(cur, idPLUS, 1, INT2FIX(1));
+    }
+
+    rb_ary_store(weights, bi, cur);
+  }
+}
+
+static int
+opt_closed_left_p(VALUE opts)
+{
+  int left_p = 1;
+
+  if (!NIL_P(opts)) {
+    VALUE closed;
+#ifdef HAVE_RB_GET_KWARGS
+    ID kwargs = id_closed;
+    rb_get_kwargs(opts, &kwargs, 0, 1, &closed);
+#else
+    closed = rb_hash_lookup2(opts, ID2SYM(id_closed), sym_left);
+#endif
+    left_p = (closed != sym_right);
+    if (left_p && closed != sym_left) {
+      rb_raise(rb_eArgError, "invalid value for :closed keyword "
+               "(%"PRIsVALUE" for :left or :right)", closed);
+    }
+  }
+
+  return left_p;
+}
+
+static inline long
+sturges(long n)
+{
+  if (n == 0) return 1L;
+  return (long)(ceil(log2(n)) + 1);
+}
+
+static VALUE
+ary_histogram_calculate_edge_lo_hi(const double lo, const double hi, const long nbins, const int left_p)
+{
+  VALUE edge;
+  double bw, lbw, start, step, divisor, r;
+  long i, len;
+
+  if (hi == lo) {
+    start = hi;
+    step = 1;
+    divisor = 1;
+    len = 1;
+  }
+  else {
+    bw = (hi - lo) / nbins;
+    lbw = log10(bw);
+    if (lbw >= 0) {
+      step = pow(10, floor(lbw));
+      r = bw / step;
+      if (r <= 1.1) {
+        /* do nothing */
+      }
+      else if (r <= 2.2) {
+        step *= 2;
+      }
+      else if (r <= 5.5) {
+        step *= 5;
+      }
+      else {
+        step *= 10;
+      }
+      divisor = 1.0;
+      start = step * floor(lo / step);
+      len = (long)ceil((hi - start) / step);
+    }
+    else {
+      divisor = pow(10, -floor(lbw));
+      r = bw * divisor;
+      if (r <= 1.1) {
+        /* do nothing */
+      }
+      else if (r <= 2.2) {
+        divisor /= 2;
+      }
+      else if (r <= 5.5) {
+        divisor /= 5;
+      }
+      else {
+        divisor /= 10;
+      }
+      step = 1.0;
+      start = floor(lo * divisor);
+      len = (long)ceil(hi * divisor - start);
+    }
+  }
+
+  if (left_p) {
+    while (lo < start/divisor) {
+      start -= step;
+    }
+    while ((start + (len - 1)*step)/divisor <= hi) {
+      ++len;
+    }
+  }
+  else {
+    while (lo <= start/divisor) {
+      start -= step;
+    }
+    while ((start + (len - 1)*step)/divisor < hi) {
+      ++len;
+    }
+  }
+
+  edge = rb_ary_new_capa(len);
+  for (i = 0; i < len; ++i) {
+    rb_ary_push(edge, DBL2NUM(start/divisor));
+    start += step;
+  }
+
+  return edge;
+}
+
+static VALUE
+ary_histogram_calculate_edge(VALUE ary, const long nbins, const int left_p)
+{
+  long n;
+  VALUE minmax;
+  VALUE edge = Qnil;
+  double lo, hi;
+
+  Check_Type(ary, T_ARRAY);
+  n = RARRAY_LEN(ary);
+
+  if (n == 0 && nbins < 0) {
+    rb_raise(rb_eArgError, "nbins must be >= 0 for an empty array, got %ld", nbins);
+  }
+  else if (n > 0 && nbins < 1) {
+    rb_raise(rb_eArgError, "nbins must be >= 1 for a non-empty array, got %ld", nbins);
+  }
+  else if (n == 0) {
+    edge = rb_ary_new_capa(1);
+    rb_ary_push(edge, DBL2NUM(0.0));
+    return edge;
+  }
+
+  minmax = rb_funcall(ary, rb_intern("minmax"), 0);
+  lo = NUM2DBL(RARRAY_AREF(minmax, 0));
+  hi = NUM2DBL(RARRAY_AREF(minmax, 1));
+
+  edge = ary_histogram_calculate_edge_lo_hi(lo, hi, nbins, left_p);
+
+  return edge;
+}
+
+/* call-seq:
+ *    ary.histogram(nbins=:auto, closed: :left)
+ *
+ * @param [Integer] nbins  The approximate number of bins
+ * @param [:left, :right] closed
+ *   If :left (the default), the bin interval are left-closed.
+ *   If :right, the bin interval are right-closed.
+ *
+ * @return [EnumerableStatistics::Histogram] The histogram struct.
+ */
+static VALUE
+ary_histogram(int argc, VALUE *argv, VALUE ary)
+{
+  VALUE arg0, opts, edge, weights;
+  int left_p;
+  long nbins;
+
+  rb_scan_args(argc, argv, "01:", &arg0, &opts);
+  if (NIL_P(arg0)) {
+    nbins = sturges(RARRAY_LEN(ary));
+  }
+  else {
+    nbins = NUM2LONG(arg0);
+  }
+  left_p = opt_closed_left_p(opts);
+
+  edge = ary_histogram_calculate_edge(ary, nbins, left_p);
+  weights = rb_ary_new_capa(RARRAY_LEN(edge) - 1);
+  histogram_weights_push_values(weights, edge, ary, left_p);
+
+  return rb_struct_new(cHistogram, edge, weights,
+                       left_p ? sym_left : sym_right,
+                       Qfalse);
+}
+
 void
 Init_extension(void)
 {
+  VALUE mEnumerableStatistics;
+
 #ifndef HAVE_ENUM_SUM
   rb_define_method(rb_mEnumerable, "sum", enum_sum, -1);
 #endif
@@ -2082,6 +2337,11 @@ Init_extension(void)
   half_in_rational = nurat_s_new_internal(rb_cRational, INT2FIX(1), INT2FIX(2));
   rb_gc_register_mark_object(half_in_rational);
 
+  mEnumerableStatistics = rb_const_get_at(rb_cObject, rb_intern("EnumerableStatistics"));
+  cHistogram = rb_const_get_at(mEnumerableStatistics, rb_intern("Histogram"));
+
+  rb_define_method(rb_cArray, "histogram", ary_histogram, -1);
+
   idPLUS = '+';
   idMINUS = '-';
   idSTAR = '*';
@@ -2098,4 +2358,9 @@ Init_extension(void)
   id_real_p = rb_intern("real?");
   id_sum = rb_intern("sum");
   id_population = rb_intern("population");
+  id_closed = rb_intern("closed");
+  id_edge = rb_intern("edge");
+
+  sym_left = ID2SYM(rb_intern("left"));
+  sym_right = ID2SYM(rb_intern("right"));
 }
