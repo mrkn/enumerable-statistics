@@ -1,6 +1,8 @@
 # master
 
 - Add `value_counts` method in Array, Hash, and Enumerable
+- Add `median` method in Array
+- Add `percentile` method in Array
 
 # 1.0.1
 
