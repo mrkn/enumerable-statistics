@@ -1484,7 +1484,7 @@ is_na(VALUE v)
 }
 
 static int
-ary_median_sort_cmp(const void *ap, const void *bp, void *dummy)
+ary_percentile_sort_cmp(const void *ap, const void *bp, void *dummy)
 {
   VALUE a = *(const VALUE *)ap, b = *(const VALUE *)bp;
   VALUE cmp;
@@ -1501,6 +1501,176 @@ ary_median_sort_cmp(const void *ap, const void *bp, void *dummy)
   return rb_cmpint(cmp, a, b);
 }
 
+static VALUE
+ary_percentile_make_sorted(VALUE ary)
+{
+  long n, i;
+  VALUE sorted;
+
+  n = RARRAY_LEN(ary);
+  sorted = rb_ary_tmp_new(n);
+  for (i = 0; i < n; ++i) {
+    rb_ary_push(sorted, RARRAY_AREF(ary, i));
+  }
+  RARRAY_PTR_USE(sorted, ptr, {
+    ruby_qsort(ptr, n, sizeof(VALUE),
+               ary_percentile_sort_cmp, NULL);
+  });
+  return sorted;
+}
+
+static inline VALUE
+ary_percentile_single_sorted(VALUE sorted, long n, double d)
+{
+  VALUE x0, x1;
+  double i, f;
+  long l;
+
+  assert(RB_TYPE_P(sorted, T_ARRAY));
+  assert(n == RARRAY_LEN(sorted));
+  assert(n > 0);
+
+  if (d < 0 || 100 < d) {
+    rb_raise(rb_eArgError, "percentile out of bounds");
+  }
+
+  if (is_na(RARRAY_AREF(sorted, 0))) {
+    return DBL2NUM(nan(""));
+  }
+
+  n = RARRAY_LEN(sorted);
+  if (n == 1) {
+    return RARRAY_AREF(sorted, 0);
+  }
+
+  d = (n - 1) * d / 100.0;
+  f = modf(d, &i);
+  l = (long)i;
+
+  x0 = RARRAY_AREF(sorted, l);
+  if (f == 0 || l == n - 1) {
+    return x0;
+  }
+
+  x0 = rb_funcall(x0, idSTAR, 1, DBL2NUM(1 - f));
+  x1 = RARRAY_AREF(sorted, l + 1);
+  x1 = rb_funcall(x1, idSTAR, 1, DBL2NUM(f));
+
+  return rb_funcall(x0, idPLUS, 1, x1);
+}
+
+static VALUE
+ary_percentile_single(VALUE ary, VALUE q)
+{
+  long n;
+  double d;
+  VALUE qf, sorted;
+
+  assert(RB_TYPE_P(ary, T_ARRAY));
+
+  n = RARRAY_LEN(ary);
+  assert(n > 0);
+
+  switch (TYPE(q)) {
+    case T_FIXNUM:
+      d = (double)FIX2LONG(q);
+      break;
+    case T_BIGNUM:
+      d = rb_big2dbl(q);
+      break;
+
+    case T_RATIONAL:
+      /* fall through */
+    default:
+      qf = NUM2DBL(q);
+      goto float_percentile;
+
+    case T_FLOAT:
+      qf = q;
+float_percentile:
+      d = RFLOAT_VALUE(qf);
+      break;
+  }
+
+  if (n == 1) {
+    return RARRAY_AREF(ary, 0);
+  }
+
+  sorted = ary_percentile_make_sorted(ary);
+
+  return ary_percentile_single_sorted(sorted, n, d);
+}
+
+/* call-seq:
+ *    ary.percentile(q) -> float
+ *
+ * Calculate specified percentiles of the values in `ary`.
+ *
+ * @param [Number, Array] percentile or array of percentiles to compute,
+ *   which must be between 0 and 100 inclusive.
+ *
+ * @return [Float, Array] A percentile value(s)
+ */
+static VALUE
+ary_percentile(VALUE ary, VALUE q)
+{
+  long n, m, i;
+  double d;
+  VALUE qf, qs, sorted, res;
+
+  n = RARRAY_LEN(ary);
+  if (n == 0) {
+    rb_raise(rb_eArgError, "unable to compute percentile(s) for an empty array");
+  }
+
+  qs = rb_check_convert_type(q, T_ARRAY, "Array", "to_ary");
+  if (NIL_P(qs)) {
+    return ary_percentile_single(ary, q);
+  }
+
+  m = RARRAY_LEN(qs);
+  res = rb_ary_new_capa(m);
+
+  if (m == 1) {
+    q = RARRAY_AREF(qs, 0);
+    rb_ary_push(res, ary_percentile_single(ary, q));
+  }
+  else {
+    sorted = ary_percentile_make_sorted(ary);
+
+    for (i = 0; i < m; ++i) {
+      VALUE x;
+
+      q = RARRAY_AREF(qs, i);
+      switch (TYPE(q)) {
+        case T_FIXNUM:
+          d = (double)FIX2LONG(q);
+          break;
+        case T_BIGNUM:
+          d = rb_big2dbl(q);
+          break;
+
+        case T_RATIONAL:
+          /* fall through */
+        default:
+          qf = NUM2DBL(q);
+          goto float_percentile;
+
+        case T_FLOAT:
+          qf = q;
+float_percentile:
+          d = RFLOAT_VALUE(qf);
+          break;
+      }
+
+      x = ary_percentile_single_sorted(sorted, n, d);
+      rb_ary_push(res, x);
+    }
+  }
+
+  return res;
+}
+
 /* call-seq:
  *    ary.median -> float
  *
@@ -1511,7 +1681,7 @@ ary_median_sort_cmp(const void *ap, const void *bp, void *dummy)
 static VALUE
 ary_median(VALUE ary)
 {
-  long i, n;
+  long n;
   VALUE sorted, a0, a1;
 
   n = RARRAY_LEN(ary);
@@ -1528,14 +1698,7 @@ ary_median(VALUE ary)
       break;
   }
 
-  sorted = rb_ary_tmp_new(n);
-  for (i = 0; i < n; ++i) {
-    rb_ary_push(sorted, RARRAY_AREF(ary, i));
-  }
-  RARRAY_PTR_USE(sorted, ptr, {
-    ruby_qsort(ptr, RARRAY_LEN(sorted), sizeof(VALUE),
-               ary_median_sort_cmp, NULL);
-  });
+  sorted = ary_percentile_make_sorted(ary);
 
   a0 = RARRAY_AREF(sorted, 0);
   if (is_na(a0)) {
@@ -1910,6 +2073,7 @@ Init_extension(void)
   rb_define_method(rb_cArray, "variance", ary_variance, -1);
   rb_define_method(rb_cArray, "mean_stdev", ary_mean_stdev, -1);
   rb_define_method(rb_cArray, "stdev", ary_stdev, -1);
+  rb_define_method(rb_cArray, "percentile", ary_percentile, 1);
   rb_define_method(rb_cArray, "median", ary_median, 0);
   rb_define_method(rb_cArray, "value_counts", ary_value_counts, -1);
 
