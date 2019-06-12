@@ -1,4 +1,4 @@
-# master
+# 2.0.0-pre
 
 - Add `value_counts` method in Array, Hash, and Enumerable
 - Add `median` method in Array
