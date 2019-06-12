@@ -46,6 +46,8 @@ The following methods are supplied by this library:
   - Calculates a percentile or percentiles of values in an array
 - `Array#value_counts`, `Enumerable#value_counts`, and `Hash#value_counts`
   - Count how many items for each value in the container
+- `Array#histogram`
+  - Calculate histogram of the values in the array
 
 Moreover, for Ruby < 2.4, `Array#sum` and `Enumerable#sum` are provided.
 
