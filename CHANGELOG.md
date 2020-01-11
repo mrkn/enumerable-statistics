@@ -1,4 +1,8 @@
-# 2.0.0-pre
+# 2.0.1
+
+- Fix a bug of `histogram` (#9)
+
+# 2.0.0
 
 - Add `value_counts` method in Array, Hash, and Enumerable
 - Add `median` method in Array
