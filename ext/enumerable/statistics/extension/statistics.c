@@ -2284,7 +2284,7 @@ ary_histogram(int argc, VALUE *argv, VALUE ary)
 {
   VALUE arg0, opts, edge, weights;
   int left_p;
-  long nbins;
+  long nbins, nweights, i;
 
   rb_scan_args(argc, argv, "01:", &arg0, &opts);
   if (NIL_P(arg0)) {
@@ -2296,7 +2296,13 @@ ary_histogram(int argc, VALUE *argv, VALUE ary)
   left_p = opt_closed_left_p(opts);
 
   edge = ary_histogram_calculate_edge(ary, nbins, left_p);
-  weights = rb_ary_new_capa(RARRAY_LEN(edge) - 1);
+
+  nweights = RARRAY_LEN(edge) - 1;
+  weights = rb_ary_new_capa(nweights);
+  for (i = 0; i < nweights; ++i) {
+    rb_ary_store(weights, i, INT2FIX(0));
+  }
+
   histogram_weights_push_values(weights, edge, ary, left_p);
 
   return rb_struct_new(cHistogram, edge, weights,

@@ -51,6 +51,19 @@ RSpec.describe Array, '#histogram' do
     end
   end
 
+  with_array [1, 2] do
+    context 'closed: :left' do
+      let(:args) { [{closed: :left}] }
+
+      specify do
+        expect(histogram.edge).to eq([1.0, 1.5, 2.0, 2.5])
+        expect(histogram.weights).to eq([1, 0, 1])
+        expect(histogram.closed).to eq(:left)
+        expect(histogram.density?).to eq(false)
+      end
+    end
+  end
+
   with_array [1, 2, 3, 4, 5, 6, 7, 8, 9] do
     context 'default' do
       specify do
