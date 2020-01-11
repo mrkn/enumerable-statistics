@@ -4,8 +4,9 @@ require 'enumerable/statistics'
 RSpec.describe Array, '#histogram' do
   let(:ary) { [] }
   let(:args) { [] }
+  let(:kwargs) { {} }
 
-  subject(:histogram) { ary.histogram(*args) }
+  subject(:histogram) { ary.histogram(*args, **kwargs) }
 
   with_array [] do
     context 'default' do
@@ -18,7 +19,7 @@ RSpec.describe Array, '#histogram' do
     end
 
     context 'closed: :right' do
-      let(:args) { [{closed: :right}] }
+      let(:kwargs) { {closed: :right} }
 
       specify do
         expect(histogram.edge).to eq([0.0])
@@ -51,6 +52,19 @@ RSpec.describe Array, '#histogram' do
     end
   end
 
+  with_array [1, 2] do
+    context 'closed: :left' do
+      let(:kwargs) { {closed: :left} }
+
+      specify do
+        expect(histogram.edge).to eq([1.0, 1.5, 2.0, 2.5])
+        expect(histogram.weights).to eq([1, 0, 1])
+        expect(histogram.closed).to eq(:left)
+        expect(histogram.density?).to eq(false)
+      end
+    end
+  end
+
   with_array [1, 2, 3, 4, 5, 6, 7, 8, 9] do
     context 'default' do
       specify do
@@ -62,7 +76,7 @@ RSpec.describe Array, '#histogram' do
     end
 
     context 'closed: :right' do
-      let(:args) { [{closed: :right}] }
+      let(:kwargs) { {closed: :right} }
 
       specify do
         expect(histogram.edge).to eq([0.0, 2.0, 4.0, 6.0, 8.0, 10.0])
@@ -108,7 +122,7 @@ RSpec.describe Array, '#histogram' do
     end
 
     context "closed: :right" do
-      let(:args) { [{closed: :right}] }
+      let(:kwargs) { {closed: :right} }
 
       specify do
         expect(histogram.edge).to eq([-4.0, -3.5, -3.0, -2.5, -2.0, -1.5,
