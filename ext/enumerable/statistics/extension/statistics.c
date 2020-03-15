@@ -95,7 +95,7 @@ static VALUE half_in_rational;
 
 static ID idPow, idPLUS, idMINUS, idSTAR, idDIV, idGE;
 static ID id_eqeq_p, id_idiv, id_negate, id_to_f, id_cmp, id_nan_p;
-static ID id_each, id_real_p, id_sum, id_population, id_closed, id_edge;
+static ID id_each, id_real_p, id_sum, id_population, id_closed, id_compare, id_edge;
 
 static VALUE sym_left, sym_right;
 
@@ -2148,6 +2148,22 @@ opt_closed_left_p(VALUE opts)
   return left_p;
 }
 
+static VALUE
+opt_compare_array(VALUE opts)
+{
+
+  if (!NIL_P(opts)) {
+    VALUE compare;
+#ifdef HAVE_RB_GET_KWARGS
+    ID kwargs = id_compare;
+    rb_get_kwargs(opts, &kwargs, 0, 1, &compare);
+#else
+    compare = rb_hash_lookup2(opts, ID2SYM(id_compare), sym_left);
+#endif
+  return compare;
+  }
+}
+
 static inline long
 sturges(long n)
 {
@@ -2309,6 +2325,20 @@ ary_histogram(int argc, VALUE *argv, VALUE ary)
                        left_p ? sym_left : sym_right,
                        Qfalse);
 }
+static VALUE
+ary_dual_histograms(int argc, VALUE *argv, VALUE ary)
+{
+  VALUE arg0, opts;
+  int left_p;
+  long nbins, nweights, i;
+  VALUE compare;
+
+  rb_scan_args(argc, argv, "01:", &arg0, &opts);
+  compare = opt_compare_array(opts);
+
+  return compare;
+}
+
 
 void
 Init_extension(void)
@@ -2347,6 +2377,7 @@ Init_extension(void)
   cHistogram = rb_const_get_at(mEnumerableStatistics, rb_intern("Histogram"));
 
   rb_define_method(rb_cArray, "histogram", ary_histogram, -1);
+  rb_define_method(rb_cArray, "dual_histograms", ary_dual_histograms, -1);
 
   idPLUS = '+';
   idMINUS = '-';
@@ -2365,6 +2396,7 @@ Init_extension(void)
   id_sum = rb_intern("sum");
   id_population = rb_intern("population");
   id_closed = rb_intern("closed");
+  id_compare = rb_intern("compare");
   id_edge = rb_intern("edge");
 
   sym_left = ID2SYM(rb_intern("left"));

@@ -8,6 +8,20 @@ RSpec.describe Array, '#histogram' do
 
   subject(:histogram) { ary.histogram(*args, **kwargs) }
 
+  context 'dualing_histogram' do
+    specify do
+
+      a = [1,1,1, 5, 5, 5, 5, 10, 10, 10]
+      b = [7, 7, 7, 12, 12, 12, 12, 20, 20, 20]
+      expect(a.histogram.edge.first).to_not eq(b.histogram.edge.first)
+      expect(a.histogram.edge.last).to_not eq(b.histogram.edge.last)
+
+      expect(a.dual_histograms(compare: b).edge.first).to eq(b.dual_histograms(compare: a).edge.first)
+      expect(a.dual_histograms(compare: b).edge.last).to eq(b.dual_histograms(compare: a).edge.last)
+    end
+  end
+
+
   with_array [] do
     context 'default' do
       specify do
