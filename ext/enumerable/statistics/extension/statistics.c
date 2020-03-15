@@ -2343,10 +2343,23 @@ ary_dual_histograms(int argc, VALUE *argv, VALUE ary)
   ary_nbins = sturges(RARRAY_LEN(ary));
   ary_edge = ary_histogram_calculate_edge(ary, ary_nbins, left_p);
 
-  /* compare_ary_nbins = sturges(RARRAY_LEN(ary)); */
-  /* compare_edge = ary_histogram_calculate_edge(compare_ary, compare_ary_nbins, left_p); */
+  compare_ary_nbins = sturges(RARRAY_LEN(ary));
+  compare_ary_edge = ary_histogram_calculate_edge(compare_ary, compare_ary_nbins, left_p);
 
-  return ary_edge;
+  VALUE all_edges, edges_max, edges_min;
+  all_edges = rb_ary_plus(ary_edge, compare_ary_edge);
+
+  VALUE ary_diff, compare_ary_diff, diff;
+  VALUE average_diff;
+
+  ary_diff = rb_funcall(rb_ary_entry(ary_edge, 1), idMINUS, 1, rb_ary_entry(ary_edge, 0));
+  compare_ary_diff = rb_funcall(rb_ary_entry(compare_ary_edge, 1), idMINUS, 1, rb_ary_entry(compare_ary_edge, 0));
+  /* average_diff = rb_funcall(rb_funcall(ary_diff, idPLUS, 1, compare_ary_diff), rb_intern("/"), 1, rb_intern("2")); */
+  average_diff = rb_funcall(rb_funcall(ary_diff, idPLUS, 1, compare_ary_diff), idDIV, 1, DBL2NUM(2.0));
+
+  rb_p(average_diff);
+
+  return compare_ary_edge;
 }
 
 
