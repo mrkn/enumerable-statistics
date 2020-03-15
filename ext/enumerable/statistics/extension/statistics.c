@@ -2330,13 +2330,23 @@ ary_dual_histograms(int argc, VALUE *argv, VALUE ary)
 {
   VALUE arg0, opts;
   int left_p;
+
+  VALUE ary_edge, compare_ary_edge;
+  VALUE ary_nbins, compare_ary_nbins;
   long nbins, nweights, i;
-  VALUE compare;
+  VALUE compare_ary;
 
   rb_scan_args(argc, argv, "01:", &arg0, &opts);
-  compare = opt_compare_array(opts);
 
-  return compare;
+  left_p = opt_closed_left_p(opts);
+  compare_ary = opt_compare_array(opts);
+  ary_nbins = sturges(RARRAY_LEN(ary));
+  ary_edge = ary_histogram_calculate_edge(ary, ary_nbins, left_p);
+
+  /* compare_ary_nbins = sturges(RARRAY_LEN(ary)); */
+  /* compare_edge = ary_histogram_calculate_edge(compare_ary, compare_ary_nbins, left_p); */
+
+  return ary_edge;
 }
 
 
