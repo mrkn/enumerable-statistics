@@ -30,8 +30,8 @@ static inline int
 enum_stat_integer_type_p(VALUE obj)
 {
     return (FIXNUM_P(obj) ||
-	    (!SPECIAL_CONST_P(obj) &&
-	     BUILTIN_TYPE(obj) == RUBY_T_BIGNUM));
+      (!SPECIAL_CONST_P(obj) &&
+       BUILTIN_TYPE(obj) == RUBY_T_BIGNUM));
 }
 #endif
 
