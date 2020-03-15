@@ -2333,7 +2333,6 @@ ary_dual_histograms(int argc, VALUE *argv, VALUE ary)
 
   VALUE ary_edge, compare_ary_edge;
   VALUE ary_nbins, compare_ary_nbins;
-  long nbins, nweights, i;
   VALUE compare_ary;
 
   rb_scan_args(argc, argv, "01:", &arg0, &opts);
@@ -2349,13 +2348,16 @@ ary_dual_histograms(int argc, VALUE *argv, VALUE ary)
   VALUE all_edges, edges_max, edges_min;
   all_edges = rb_ary_plus(ary_edge, compare_ary_edge);
 
-  VALUE ary_diff, compare_ary_diff, diff;
-  VALUE average_diff;
+  VALUE ary_diff, compare_ary_diff, average_diff;
 
   ary_diff = rb_funcall(rb_ary_entry(ary_edge, 1), idMINUS, 1, rb_ary_entry(ary_edge, 0));
   compare_ary_diff = rb_funcall(rb_ary_entry(compare_ary_edge, 1), idMINUS, 1, rb_ary_entry(compare_ary_edge, 0));
   /* average_diff = rb_funcall(rb_funcall(ary_diff, idPLUS, 1, compare_ary_diff), rb_intern("/"), 1, rb_intern("2")); */
   average_diff = rb_funcall(rb_funcall(ary_diff, idPLUS, 1, compare_ary_diff), idDIV, 1, DBL2NUM(2.0));
+
+  edges_max = rb_funcall(all_edges, rb_intern("max"), 0);
+  edges_min = rb_funcall(all_edges, rb_intern("min"), 0);
+  rb_p(edges_min);
 
   rb_p(average_diff);
 
