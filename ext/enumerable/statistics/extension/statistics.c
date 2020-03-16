@@ -2328,8 +2328,9 @@ ary_histogram(int argc, VALUE *argv, VALUE ary)
 static VALUE
 ary_dual_histograms(int argc, VALUE *argv, VALUE ary)
 {
-  VALUE arg0, opts;
+  VALUE arg0, opts, weights, edge;
   int left_p;
+  long nweights, i;
 
   VALUE ary_edge, compare_ary_edge;
   VALUE ary_nbins, compare_ary_nbins;
@@ -2339,38 +2340,47 @@ ary_dual_histograms(int argc, VALUE *argv, VALUE ary)
 
   left_p = opt_closed_left_p(opts);
   compare_ary = opt_compare_array(opts);
+
+  // Calculate edges for both arrays
   ary_nbins = sturges(RARRAY_LEN(ary));
   ary_edge = ary_histogram_calculate_edge(ary, ary_nbins, left_p);
 
   compare_ary_nbins = sturges(RARRAY_LEN(ary));
   compare_ary_edge = ary_histogram_calculate_edge(compare_ary, compare_ary_nbins, left_p);
 
-  VALUE all_edges, edges_max, edges_min;
+  VALUE all_edges, edges_max, edges_min, ary_diff, compare_ary_diff, average_diff, last_edge;
   all_edges = rb_ary_plus(ary_edge, compare_ary_edge);
 
-  VALUE ary_diff, compare_ary_diff, average_diff;
-
+  // Figure out average interval between two edges
   ary_diff = rb_funcall(rb_ary_entry(ary_edge, 1), idMINUS, 1, rb_ary_entry(ary_edge, 0));
   compare_ary_diff = rb_funcall(rb_ary_entry(compare_ary_edge, 1), idMINUS, 1, rb_ary_entry(compare_ary_edge, 0));
   average_diff = rb_funcall(rb_funcall(ary_diff, idPLUS, 1, compare_ary_diff), idDIV, 1, DBL2NUM(2.0));
 
   edges_max = rb_funcall(all_edges, rb_intern("max"), 0);
   edges_min = rb_funcall(all_edges, rb_intern("min"), 0);
-  rb_p(edges_max);
 
-  VALUE edges, last_edge;
+
+  // Build new edge array from minimum value to the maximum value of shared edges
   last_edge = edges_min;
-
-  edges = rb_ary_new();
-
-  rb_ary_push(edges, last_edge);
-
+  edge = rb_ary_new();
+  rb_ary_push(edge, last_edge);
   while (RTEST(rb_funcall(last_edge, rb_intern("<"), 1, edges_max))) {
     last_edge = rb_funcall(last_edge, idPLUS, 1, average_diff);
-    rb_ary_push(edges, last_edge);
+    rb_ary_push(edge, last_edge);
   }
 
-  return compare_ary_edge;
+  // Generate histogram using the shared edge values
+  nweights = RARRAY_LEN(edge) - 1;
+  weights = rb_ary_new_capa(nweights);
+  for (i = 0; i < nweights; ++i) {
+    rb_ary_store(weights, i, INT2FIX(0));
+  }
+
+  histogram_weights_push_values(weights, edge, ary, left_p);
+
+  return rb_struct_new(cHistogram, edge, weights,
+                       left_p ? sym_left : sym_right,
+                       Qfalse);
 }
 
 
