@@ -2352,14 +2352,23 @@ ary_dual_histograms(int argc, VALUE *argv, VALUE ary)
 
   ary_diff = rb_funcall(rb_ary_entry(ary_edge, 1), idMINUS, 1, rb_ary_entry(ary_edge, 0));
   compare_ary_diff = rb_funcall(rb_ary_entry(compare_ary_edge, 1), idMINUS, 1, rb_ary_entry(compare_ary_edge, 0));
-  /* average_diff = rb_funcall(rb_funcall(ary_diff, idPLUS, 1, compare_ary_diff), rb_intern("/"), 1, rb_intern("2")); */
   average_diff = rb_funcall(rb_funcall(ary_diff, idPLUS, 1, compare_ary_diff), idDIV, 1, DBL2NUM(2.0));
 
   edges_max = rb_funcall(all_edges, rb_intern("max"), 0);
   edges_min = rb_funcall(all_edges, rb_intern("min"), 0);
-  rb_p(edges_min);
+  rb_p(edges_max);
 
-  rb_p(average_diff);
+  VALUE edges, last_edge;
+  last_edge = edges_min;
+
+  edges = rb_ary_new();
+
+  rb_ary_push(edges, last_edge);
+
+  while (RTEST(rb_funcall(last_edge, rb_intern("<"), 1, edges_max))) {
+    last_edge = rb_funcall(last_edge, idPLUS, 1, average_diff);
+    rb_ary_push(edges, last_edge);
+  }
 
   return compare_ary_edge;
 }
