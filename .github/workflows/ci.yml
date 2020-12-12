@@ -15,13 +15,18 @@ jobs:
         - ubuntu-latest
         - macos-latest
         - windows-latest
-        ruby_version:
+        ruby:
         - 3.0.0-preview2
         - 2.7
         - 2.6
         - 2.5
         - 2.4
         - debug
+        exclude:
+        - os: windows-latest
+          ruby: 3.0.0-preview2
+        - os: windows-latest
+          ruby: debug
 
     steps:
     - uses: actions/checkout@v2
@@ -29,7 +34,7 @@ jobs:
     - name: Setup Ruby
       uses: ruby/setup-ruby@v1
       with:
-        ruby-version: ${{ matrix.ruby_version }}
+        ruby-version: ${{ matrix.ruby }}
 
     - run: yes | gem update --system
     - run: gem install bundler
