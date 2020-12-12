@@ -44,7 +44,7 @@ struct RRational {
 #endif
 
 #ifndef RRATIONAL
-# define RRATIONAL(obj) (R_CAST(RRational)(obj))
+# define RRATIONAL(obj) ((struct RRational *)(obj))
 #endif
 
 #ifndef RRATIONAL_SET_NUM
@@ -64,7 +64,7 @@ struct RComplex {
 #endif
 
 #ifndef RCOMPLEX
-# define RCOMPLEX(obj) (R_CAST(RComplex)(obj))
+# define RCOMPLEX(obj) ((struct RComplex *)(obj))
 #endif
 
 #ifndef RCOMPLEX_SET_REAL
