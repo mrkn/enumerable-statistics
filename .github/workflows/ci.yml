@@ -36,7 +36,6 @@ jobs:
       with:
         ruby-version: ${{ matrix.ruby }}
 
-    - run: yes | gem update --system
     - run: gem install bundler
     - run: bundle install
 
