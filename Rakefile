@@ -10,6 +10,8 @@ directory 'lib/enumerable/statistics'
 
 RSpec::Core::RakeTask.new(:spec)
 
+task :spec => :compile
+
 task :bench do
   puts "# sum\n"
   system('benchmark-driver bench/sum.yml')
