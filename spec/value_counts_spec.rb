@@ -46,11 +46,21 @@ RSpec.shared_examples_for 'value_counts' do
 
   matrix.each do |params|
     param_values = params.values_at(:normalize, :sort, :ascending, :dropna)
+
     context "with normalize: %s, sort: %s, ascending: %s, dropna: %s" % param_values do
-      specify do
-        params = params.dup
-        expected_result = params.delete(:result)
-        expect(receiver.value_counts(**params).to_a).to eq(expected_result.to_a)
+      args = params.dup
+      expected_result = args.delete(:result)
+
+      specify "the order of counts" do
+        result_values = receiver.value_counts(**args).values
+        expected_values = expected_result.values
+        expect(result_values).to eq(expected_values)
+      end
+
+      specify "pairs" do
+        result_pairs = receiver.value_counts(**args).to_a.sort_by {|a| a[0].to_s }
+        expected_pairs = expected_result.to_a.sort_by {|a| a[0].to_s }
+        expect(result_pairs).to eq(expected_pairs)
       end
     end
   end
