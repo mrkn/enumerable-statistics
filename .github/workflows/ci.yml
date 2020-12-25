@@ -16,7 +16,7 @@ jobs:
         - macos-latest
         - windows-latest
         ruby:
-        - 3.0.0-preview2
+        - 3.0
         - 2.7
         - 2.6
         - 2.5
@@ -24,7 +24,7 @@ jobs:
         - debug
         exclude:
         - os: windows-latest
-          ruby: 3.0.0-preview2
+          ruby: 3.0
         - os: windows-latest
           ruby: debug
 
