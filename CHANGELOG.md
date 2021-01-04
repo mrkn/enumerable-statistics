@@ -1,3 +1,7 @@
+# 2.0.3
+
+- Ractor-safe version
+
 # 2.0.2
 
 - Support Ruby 3.0
