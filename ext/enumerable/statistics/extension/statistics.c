@@ -2315,6 +2315,10 @@ Init_extension(void)
 {
   VALUE mEnumerableStatistics;
 
+#ifdef HAVE_RB_EXT_RACTOR_SAFE
+  rb_ext_ractor_safe(true);
+#endif
+
 #ifndef HAVE_ENUM_SUM
   rb_define_method(rb_mEnumerable, "sum", enum_sum, -1);
 #endif
