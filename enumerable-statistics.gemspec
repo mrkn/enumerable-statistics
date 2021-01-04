@@ -31,6 +31,7 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "rake"
   spec.add_development_dependency "rake-compiler", ">= 0.9.8"
   spec.add_development_dependency "rspec", ">= 3.4"
+  spec.add_development_dependency "test-unit"
   spec.add_development_dependency "fuubar"
   spec.add_development_dependency "yard"
   spec.add_development_dependency "benchmark-driver"

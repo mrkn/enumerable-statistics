@@ -44,4 +44,4 @@ jobs:
     - run: rake build
     - run: gem install pkg/*gem
 
-    - run: rake spec
+    - run: rake
