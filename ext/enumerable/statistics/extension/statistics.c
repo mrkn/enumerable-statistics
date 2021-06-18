@@ -2352,6 +2352,9 @@ Init_extension(void)
 
   rb_define_method(rb_cArray, "histogram", ary_histogram, -1);
 
+  void Init_array_extension(void);
+  Init_array_extension();
+
   idPLUS = '+';
   idMINUS = '-';
   idSTAR = '*';
