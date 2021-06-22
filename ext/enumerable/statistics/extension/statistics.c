@@ -2280,6 +2280,37 @@ ary_histogram_calculate_edge(VALUE ary, const long nbins, const int left_p)
   return edge;
 }
 
+static VALUE
+check_histogram_weight_array(VALUE weight_array, const long ary_len)
+{
+  if (weight_array == Qundef) return Qnil;
+
+  weight_array = rb_check_convert_type(weight_array, T_ARRAY, "Array", "to_ary");
+  if (RARRAY_LEN(weight_array) != ary_len) {
+    rb_raise(rb_eArgError, "weight array must have the same number of items as the receiver array");
+  }
+
+  return weight_array;
+}
+
+static VALUE
+check_histogram_edges(VALUE edges)
+{
+  if (edges == Qundef) return Qnil;
+  return rb_check_convert_type(edges, T_ARRAY, "Array", "to_ary");
+}
+
+static int
+check_histogram_left_p(VALUE closed)
+{
+  int left_p = (closed != sym_right);
+  if (left_p && closed != Qundef && closed != sym_left) {
+    rb_raise(rb_eArgError, "invalid value for :closed keyword "
+        "(%"PRIsVALUE" for :left or :right)", closed);
+  }
+  return left_p;
+}
+
 /* call-seq:
  *    ary.histogram(nbins=:auto, weight: nil, closed: :left)
  *
@@ -2296,10 +2327,11 @@ ary_histogram_calculate_edge(VALUE ary, const long nbins, const int left_p)
 static VALUE
 ary_histogram(int argc, VALUE *argv, VALUE ary)
 {
-  VALUE arg0, kwargs, edge, bin_weights;
+  VALUE arg0, kwargs, bin_weights;
   long nbins, n_bin_weights, i;
 
   VALUE weight_array = Qnil;
+  VALUE edges = Qnil;
   int left_p = 1;
 
   rb_scan_args(argc, argv, "01:", &arg0, &kwargs);
@@ -2311,48 +2343,36 @@ ary_histogram(int argc, VALUE *argv, VALUE ary)
   }
 
   if (!NIL_P(kwargs)) {
-    enum { kw_weight, kw_closed };
-    static ID kwarg_keys[2];
-    VALUE kwarg_vals[2];
-    VALUE closed;
+    enum { kw_weight, kw_edges, kw_closed };
+    static ID kwarg_keys[3];
+    VALUE kwarg_vals[3];
 
     if (!kwarg_keys[0]) {
       kwarg_keys[kw_weight] = rb_intern("weight");
+      kwarg_keys[kw_edges]  = rb_intern("edges");
       kwarg_keys[kw_closed] = rb_intern("closed");
     }
 
-    rb_get_kwargs(kwargs, kwarg_keys, 0, 2, kwarg_vals);
+    rb_get_kwargs(kwargs, kwarg_keys, 0, 3, kwarg_vals);
 
-    weight_array = kwarg_vals[kw_weight];
-    if (weight_array != Qundef) {
-      weight_array = rb_check_convert_type(weight_array, T_ARRAY, "Array", "to_ary");
-      if (RARRAY_LEN(weight_array) != RARRAY_LEN(ary)) {
-        rb_raise(rb_eArgError, "weight array must have the same number of items as the receiver array");
-      }
-    }
-    else {
-      weight_array = Qnil;
-    }
-
-    closed = kwarg_vals[kw_closed];
-    left_p = (closed != sym_right);
-    if (left_p && closed != Qundef && closed != sym_left) {
-      rb_raise(rb_eArgError, "invalid value for :closed keyword "
-               "(%"PRIsVALUE" for :left or :right)", closed);
-    }
+    weight_array = check_histogram_weight_array(kwarg_vals[kw_weight], RARRAY_LEN(ary));
+    edges = check_histogram_edges(kwarg_vals[kw_edges]);
+    left_p = check_histogram_left_p(kwarg_vals[kw_closed]);
   }
 
-  edge = ary_histogram_calculate_edge(ary, nbins, left_p);
+  if (NIL_P(edges)) {
+    edges = ary_histogram_calculate_edge(ary, nbins, left_p);
+  }
 
-  n_bin_weights = RARRAY_LEN(edge) - 1;
+  n_bin_weights = RARRAY_LEN(edges) - 1;
   bin_weights = rb_ary_new_capa(n_bin_weights);
   for (i = 0; i < n_bin_weights; ++i) {
     rb_ary_store(bin_weights, i, INT2FIX(0));
   }
 
-  histogram_weights_push_values(bin_weights, edge, ary, weight_array, left_p);
+  histogram_weights_push_values(bin_weights, edges, ary, weight_array, left_p);
 
-  return rb_struct_new(cHistogram, edge, bin_weights,
+  return rb_struct_new(cHistogram, edges, bin_weights,
                        left_p ? sym_left : sym_right,
                        Qfalse);
 }

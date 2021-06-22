@@ -11,7 +11,7 @@ RSpec.describe Array, '#histogram' do
   with_array [] do
     context 'default' do
       specify do
-        expect(histogram.edge).to eq([0.0])
+        expect(histogram.edges).to eq([0.0])
         expect(histogram.weights).to eq([])
         expect(histogram.closed).to eq(:left)
         expect(histogram.density?).to eq(false)
@@ -22,7 +22,7 @@ RSpec.describe Array, '#histogram' do
       let(:kwargs) { {closed: :right} }
 
       specify do
-        expect(histogram.edge).to eq([0.0])
+        expect(histogram.edges).to eq([0.0])
         expect(histogram.weights).to eq([])
         expect(histogram.closed).to eq(:right)
         expect(histogram.density?).to eq(false)
@@ -33,7 +33,7 @@ RSpec.describe Array, '#histogram' do
   with_array [1] do
     context 'default' do
       specify do
-        expect(histogram.edge).to eq([1.0, 2.0])
+        expect(histogram.edges).to eq([1.0, 2.0])
         expect(histogram.weights).to eq([1])
         expect(histogram.closed).to eq(:left)
         expect(histogram.density?).to eq(false)
@@ -44,7 +44,7 @@ RSpec.describe Array, '#histogram' do
       let(:args) { [5] }
 
       specify do
-        expect(histogram.edge).to eq([1.0, 2.0])
+        expect(histogram.edges).to eq([1.0, 2.0])
         expect(histogram.weights).to eq([1])
         expect(histogram.closed).to eq(:left)
         expect(histogram.density?).to eq(false)
@@ -57,7 +57,7 @@ RSpec.describe Array, '#histogram' do
       let(:kwargs) { {closed: :left} }
 
       specify do
-        expect(histogram.edge).to eq([1.0, 1.5, 2.0, 2.5])
+        expect(histogram.edges).to eq([1.0, 1.5, 2.0, 2.5])
         expect(histogram.weights).to eq([1, 0, 1])
         expect(histogram.closed).to eq(:left)
         expect(histogram.density?).to eq(false)
@@ -68,7 +68,7 @@ RSpec.describe Array, '#histogram' do
   with_array [1, 2, 3, 4, 5, 6, 7, 8, 9] do
     context 'default' do
       specify do
-        expect(histogram.edge).to eq([0.0, 2.0, 4.0, 6.0, 8.0, 10.0])
+        expect(histogram.edges).to eq([0.0, 2.0, 4.0, 6.0, 8.0, 10.0])
         expect(histogram.weights).to eq([1, 2, 2, 2, 2])
         expect(histogram.closed).to eq(:left)
         expect(histogram.density?).to eq(false)
@@ -79,7 +79,7 @@ RSpec.describe Array, '#histogram' do
       let(:args) { [:auto] }
 
       specify do
-        expect(histogram.edge).to eq([0.0, 2.0, 4.0, 6.0, 8.0, 10.0])
+        expect(histogram.edges).to eq([0.0, 2.0, 4.0, 6.0, 8.0, 10.0])
         expect(histogram.weights).to eq([1, 2, 2, 2, 2])
         expect(histogram.closed).to eq(:left)
         expect(histogram.density?).to eq(false)
@@ -90,7 +90,7 @@ RSpec.describe Array, '#histogram' do
       let(:kwargs) { {closed: :right} }
 
       specify do
-        expect(histogram.edge).to eq([0.0, 2.0, 4.0, 6.0, 8.0, 10.0])
+        expect(histogram.edges).to eq([0.0, 2.0, 4.0, 6.0, 8.0, 10.0])
         expect(histogram.weights).to eq([2, 2, 2, 2, 1])
         expect(histogram.closed).to eq(:right)
         expect(histogram.density?).to eq(false)
@@ -124,6 +124,17 @@ RSpec.describe Array, '#histogram' do
 
       specify do
         expect { histogram }.to raise_error(TypeError)
+      end
+    end
+
+    context 'edges: [0.0, 3.0, 6.0, 9.0, 12.0]' do
+      let(:kwargs) { {edges: [0.0, 3.0, 6.0, 9.0, 12.0]} }
+
+      specify do
+        expect(histogram.edge).to eq([0.0, 3.0, 6.0, 9.0, 12.0])
+        expect(histogram.weights).to eq([2, 3, 3, 1])
+        expect(histogram.closed).to eq(:left)
+        expect(histogram.density?).to eq(false)
       end
     end
   end
