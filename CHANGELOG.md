@@ -1,3 +1,8 @@
+# 2.0.4
+
+- Add `find_min`, `find_max`, `argmin`, `argmax` methods
+- Fix `nbin=:auto` case in `histogram` method
+
 # 2.0.3
 
 - Ractor-safe version
