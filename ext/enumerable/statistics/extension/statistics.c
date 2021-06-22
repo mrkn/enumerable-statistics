@@ -97,7 +97,7 @@ static ID idPow, idPLUS, idMINUS, idSTAR, idDIV, idGE;
 static ID id_eqeq_p, id_idiv, id_negate, id_to_f, id_cmp, id_nan_p;
 static ID id_each, id_real_p, id_sum, id_population, id_closed, id_edge;
 
-static VALUE sym_left, sym_right;
+static VALUE sym_auto, sym_left, sym_right;
 
 static VALUE cHistogram;
 
@@ -2287,7 +2287,7 @@ ary_histogram(int argc, VALUE *argv, VALUE ary)
   long nbins, nweights, i;
 
   rb_scan_args(argc, argv, "01:", &arg0, &opts);
-  if (NIL_P(arg0)) {
+  if (NIL_P(arg0) || arg0 == sym_auto) {
     nbins = sturges(RARRAY_LEN(ary));
   }
   else {
@@ -2374,6 +2374,7 @@ Init_extension(void)
   id_closed = rb_intern("closed");
   id_edge = rb_intern("edge");
 
+  sym_auto = ID2SYM(rb_intern("auto"));
   sym_left = ID2SYM(rb_intern("left"));
   sym_right = ID2SYM(rb_intern("right"));
 }

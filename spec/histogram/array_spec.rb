@@ -75,6 +75,17 @@ RSpec.describe Array, '#histogram' do
       end
     end
 
+    context 'nbins: :auto' do
+      let(:args) { [:auto] }
+
+      specify do
+        expect(histogram.edge).to eq([0.0, 2.0, 4.0, 6.0, 8.0, 10.0])
+        expect(histogram.weights).to eq([1, 2, 2, 2, 2])
+        expect(histogram.closed).to eq(:left)
+        expect(histogram.density?).to eq(false)
+      end
+    end
+
     context 'closed: :right' do
       let(:kwargs) { {closed: :right} }
 
