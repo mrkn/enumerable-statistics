@@ -2318,6 +2318,9 @@ check_histogram_left_p(VALUE closed)
  * @params [Array<Numeric>] weights
  *   An optional weight array, that has the same length as the receiver.
  *   `weight[i]` means the weight value of the i-th element in the receiver.
+ * @params [Array<Numeric>] edges
+ *   An optional edge array, that specify the bin edges.
+ *   This array must be sorted.
  * @param [:left, :right] closed
  *   If :left (the default), the bin interval are left-closed.
  *   If :right, the bin interval are right-closed.
