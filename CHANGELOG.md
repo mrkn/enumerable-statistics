@@ -1,3 +1,8 @@
+# 2.0.6
+
+- Add edges parameter in histogram
+- Rename parameter in histogram to fix typo: `weight` to `weights`
+
 # 2.0.5
 
 - Add weighted histogram support
