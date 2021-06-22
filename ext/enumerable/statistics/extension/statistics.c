@@ -2315,7 +2315,7 @@ check_histogram_left_p(VALUE closed)
  *    ary.histogram(nbins=:auto, weight: nil, closed: :left)
  *
  * @param [Integer] nbins  The approximate number of bins
- * @params [Array<Numeric>] weight
+ * @params [Array<Numeric>] weights
  *   An optional weight array, that has the same length as the receiver.
  *   `weight[i]` means the weight value of the i-th element in the receiver.
  * @param [:left, :right] closed
@@ -2343,19 +2343,19 @@ ary_histogram(int argc, VALUE *argv, VALUE ary)
   }
 
   if (!NIL_P(kwargs)) {
-    enum { kw_weight, kw_edges, kw_closed };
+    enum { kw_weights, kw_edges, kw_closed };
     static ID kwarg_keys[3];
     VALUE kwarg_vals[3];
 
     if (!kwarg_keys[0]) {
-      kwarg_keys[kw_weight] = rb_intern("weight");
+      kwarg_keys[kw_weight] = rb_intern("weights");
       kwarg_keys[kw_edges]  = rb_intern("edges");
       kwarg_keys[kw_closed] = rb_intern("closed");
     }
 
     rb_get_kwargs(kwargs, kwarg_keys, 0, 3, kwarg_vals);
 
-    weight_array = check_histogram_weight_array(kwarg_vals[kw_weight], RARRAY_LEN(ary));
+    weight_array = check_histogram_weight_array(kwarg_vals[kw_weights], RARRAY_LEN(ary));
     edges = check_histogram_edges(kwarg_vals[kw_edges]);
     left_p = check_histogram_left_p(kwarg_vals[kw_closed]);
   }

@@ -108,8 +108,8 @@ RSpec.describe Array, '#histogram' do
       end
     end
 
-    context 'weight: [3, 3, 3, 2, 2, 2, 1, 1, 1]' do
-      let(:kwargs) { {weight: [3, 3, 3, 2, 2, 2, 1, 1, 1]} }
+    context 'weights: [3, 3, 3, 2, 2, 2, 1, 1, 1]' do
+      let(:kwargs) { {weights: [3, 3, 3, 2, 2, 2, 1, 1, 1]} }
 
       specify do
         expect(histogram.edge).to eq([0.0, 2.0, 4.0, 6.0, 8.0, 10.0])
@@ -119,8 +119,8 @@ RSpec.describe Array, '#histogram' do
       end
     end
 
-    context 'weight: [3, 3i, 3, 2, 2, 2, 1, 1, 1]' do
-      let(:kwargs) { {weight: [3, 3i, 3, 2, 2, 2, 1, 1, 1]} }
+    context 'weights: [3, 3i, 3, 2, 2, 2, 1, 1, 1]' do
+      let(:kwargs) { {weights: [3, 3i, 3, 2, 2, 2, 1, 1, 1]} }
 
       specify do
         expect { histogram }.to raise_error(TypeError)
