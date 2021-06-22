@@ -1,3 +1,7 @@
+# 2.0.5
+
+- Add weighted histogram support
+
 # 2.0.4
 
 - Add `find_min`, `find_max`, `argmin`, `argmax` methods
