@@ -2351,7 +2351,7 @@ ary_histogram(int argc, VALUE *argv, VALUE ary)
     VALUE kwarg_vals[3];
 
     if (!kwarg_keys[0]) {
-      kwarg_keys[kw_weight] = rb_intern("weights");
+      kwarg_keys[kw_weights] = rb_intern("weights");
       kwarg_keys[kw_edges]  = rb_intern("edges");
       kwarg_keys[kw_closed] = rb_intern("closed");
     }
