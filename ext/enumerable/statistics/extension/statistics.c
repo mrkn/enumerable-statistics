@@ -2104,10 +2104,15 @@ histogram_edge_bin_index(VALUE edge, VALUE rb_x, int left_p)
 static void
 histogram_weights_push_values(VALUE bin_weights, VALUE edge, VALUE values, VALUE weight_array, int left_p)
 {
+  const VALUE one = INT2FIX(1);
+  long bi, i, n, n_bins, weighted = 0;
   VALUE x, cur;
-  long i, n, bi, one, weighted = 0;
+
+  assert(RB_TYPE_P(edge, T_ARRAY));
+  assert(RB_TYPE_P(values, T_ARRAY));
 
   n = RARRAY_LEN(values);
+  n_bins = RARRAY_LEN(edge) - 1;
 
   if (! NIL_P(weight_array)) {
     assert(RB_TYPE_P(weight_array, T_ARRAY));
@@ -2115,7 +2120,6 @@ histogram_weights_push_values(VALUE bin_weights, VALUE edge, VALUE values, VALUE
     weighted = 1;
   }
 
-  one = INT2FIX(1);
   for (i = 0; i < n; ++i) {
     x = RARRAY_AREF(values, i);
 
@@ -2143,15 +2147,17 @@ histogram_weights_push_values(VALUE bin_weights, VALUE edge, VALUE values, VALUE
 
     bi = histogram_edge_bin_index(edge, x, left_p);
 
-    cur = rb_ary_entry(bin_weights, bi);
-    if (NIL_P(cur)) {
-      cur = w;
-    }
-    else {
-      cur = rb_funcall(cur, idPLUS, 1, w);
-    }
+    if (0 <= bi && bi < n_bins) {
+      cur = rb_ary_entry(bin_weights, bi);
+      if (NIL_P(cur)) {
+        cur = w;
+      }
+      else {
+        cur = rb_funcall(cur, idPLUS, 1, w);
+      }
 
-    rb_ary_store(bin_weights, bi, cur);
+      rb_ary_store(bin_weights, bi, cur);
+    }
   }
   return;
 

@@ -137,6 +137,17 @@ RSpec.describe Array, '#histogram' do
         expect(histogram.density?).to eq(false)
       end
     end
+
+    context 'edges: [3.0, 6.0, 9.0]' do
+      let(:kwargs) { {edges: [3.0, 6.0, 9.0]} }
+
+      specify do
+        expect(histogram.edge).to eq([3.0, 6.0, 9.0])
+        expect(histogram.weights).to eq([3, 3])
+        expect(histogram.closed).to eq(:left)
+        expect(histogram.density?).to eq(false)
+      end
+    end
   end
 
   context "with 10,000 normal random values" do
