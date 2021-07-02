@@ -97,7 +97,7 @@ static ID idPow, idPLUS, idMINUS, idSTAR, idDIV, idGE;
 static ID id_eqeq_p, id_idiv, id_negate, id_to_f, id_cmp, id_nan_p;
 static ID id_each, id_real_p, id_sum, id_population, id_closed, id_edge;
 
-static VALUE sym_auto, sym_left, sym_right;
+static VALUE sym_auto, sym_left, sym_right, sym_sturges;
 
 static VALUE cHistogram;
 
@@ -2255,15 +2255,31 @@ ary_histogram_calculate_edge_lo_hi(const double lo, const double hi, const long 
 }
 
 static VALUE
-ary_histogram_calculate_edge(VALUE ary, const long nbins, const int left_p)
+ary_histogram_calculate_edge(VALUE ary, VALUE arg0, const int left_p)
 {
-  long n;
+  long n, nbins;
   VALUE minmax;
   VALUE edge = Qnil;
   double lo, hi;
 
   Check_Type(ary, T_ARRAY);
   n = RARRAY_LEN(ary);
+
+  if (NIL_P(arg0)) {
+    arg0 = sym_auto;
+  }
+
+  if (RB_TYPE_P(arg0, T_SYMBOL)) {
+    if (arg0 != sym_auto && arg0 != sym_sturges) {
+      rb_raise(rb_eArgError, "Unknown method to calculate bin width: %+"PRIsVALUE, arg0);
+    }
+    else {
+      nbins = sturges(n);
+    }
+  }
+  else {
+    nbins = NUM2LONG(arg0);
+  }
 
   if (n == 0 && nbins < 0) {
     rb_raise(rb_eArgError, "nbins must be >= 0 for an empty array, got %ld", nbins);
@@ -2337,19 +2353,13 @@ static VALUE
 ary_histogram(int argc, VALUE *argv, VALUE ary)
 {
   VALUE arg0, kwargs, bin_weights;
-  long nbins, n_bin_weights, i;
+  long n_bin_weights, i;
 
   VALUE weight_array = Qnil;
   VALUE edges = Qnil;
   int left_p = 1;
 
   rb_scan_args(argc, argv, "01:", &arg0, &kwargs);
-  if (NIL_P(arg0) || arg0 == sym_auto) {
-    nbins = sturges(RARRAY_LEN(ary));
-  }
-  else {
-    nbins = NUM2LONG(arg0);
-  }
 
   if (!NIL_P(kwargs)) {
     enum { kw_weights, kw_edges, kw_closed };
@@ -2370,7 +2380,10 @@ ary_histogram(int argc, VALUE *argv, VALUE ary)
   }
 
   if (NIL_P(edges)) {
-    edges = ary_histogram_calculate_edge(ary, nbins, left_p);
+    edges = ary_histogram_calculate_edge(ary, arg0, left_p);
+  }
+  else if (! NIL_P(arg0)) {
+    rb_raise(rb_eArgError, "Unable to use both `nbins` and `edges` together");
   }
 
   n_bin_weights = RARRAY_LEN(edges) - 1;
