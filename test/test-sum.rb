@@ -57,6 +57,25 @@ class SumTest < Test::Unit::TestCase
                    { result: result, yielded: yielded })
     end
 
+    def test_skip_na_false
+      ary = [1, 2, nil, SimpleDelegator.new(3)]
+      assert_raise(TypeError) do
+        ary.sum(0, skip_na: false)
+      end
+    end
+
+    def test_skip_na_true
+      ary = [1, 2, nil, SimpleDelegator.new(3)]
+      result = ary.sum(0, skip_na: true)
+      assert_equal(6, result)
+    end
+
+    def test_skip_na_true_with_block
+      ary = [1, 2, nil, SimpleDelegator.new(3)]
+      result = ary.sum(0, skip_na: true) {|x| x || 10 }
+      assert_equal(16, result)
+    end
+
     def test_type_error
       assert_raise(TypeError) do
         [Object.new].sum(0)
@@ -90,10 +109,48 @@ class SumTest < Test::Unit::TestCase
                    { result: result, yielded: yielded })
     end
 
+    def test_skip_na_false
+      ary = [1, 2, nil, SimpleDelegator.new(3)]
+      assert_raise(TypeError) do
+        ary.each.sum(0, skip_na: false)
+      end
+    end
+
+    def test_skip_na_true
+      ary = [1, 2, nil, SimpleDelegator.new(3)]
+      result = ary.each.sum(0, skip_na: true)
+      assert_equal(6, result)
+    end
+
     def test_type_error
       assert_raise(TypeError) do
         [Object.new].each.sum(0)
       end
+    end
+  end
+
+  sub_test_case("Hash#sum") do
+    def test_skip_na_false
+      hash = {
+        a: 1,
+        b: 2,
+        c: nil,
+        d: 3
+      }
+      assert_raise(TypeError) do
+        hash.sum(0, skip_na: false, &:last)
+      end
+    end
+
+    def test_skip_na_true
+      hash = {
+        a: 1,
+        b: 2,
+        c: nil,
+        d: 3
+      }
+      result = hash.sum(0, skip_na: true, &:last)
+      assert_equal(6, result)
     end
   end
 end

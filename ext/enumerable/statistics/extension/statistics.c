@@ -96,10 +96,13 @@ static VALUE half_in_rational;
 static ID idPow, idPLUS, idMINUS, idSTAR, idDIV, idGE;
 static ID id_eqeq_p, id_idiv, id_negate, id_to_f, id_cmp, id_nan_p;
 static ID id_each, id_real_p, id_sum, id_population, id_closed, id_edge;
+static ID id_skip_na;
 
 static VALUE sym_auto, sym_left, sym_right, sym_sturges;
 
 static VALUE cHistogram;
+
+static VALUE orig_enum_sum, orig_ary_sum;
 
 inline static VALUE
 f_add(VALUE x, VALUE y)
@@ -632,8 +635,40 @@ rb_rational_plus(VALUE self, VALUE other)
 }
 #endif
 
+static inline int
+is_na(VALUE v)
+{
+  if (NIL_P(v))
+    return 1;
+
+  if (RB_FLOAT_TYPE_P(v) && isnan(RFLOAT_VALUE(v)))
+    return 1;
+
+  if (rb_respond_to(v, id_nan_p) && RTEST(rb_funcall(v, id_nan_p, 0)))
+    return 1;
+
+  return 0;
+}
+
+static int opt_skip_na(VALUE opts)
+{
+  VALUE skip_na = Qfalse;
+
+  if (!NIL_P(opts)) {
+#ifdef HAVE_RB_GET_KWARGS
+    ID kwargs = id_skip_na;
+    rb_get_kwargs(opts, &kwargs, 0, 1, &skip_na);
+#else
+    VALUE val = rb_hash_aref(opts, ID2SYM(id_skip_na));
+    skip_na = NIL_P(val) ? skip_na : val;
+#endif
+  }
+
+  return RTEST(skip_na);
+}
+
 /* call-seq:
- *    ary.sum
+ *    ary.sum(skip_na: false)
  *
  * Calculate the sum of the values in `ary`.
  * This method utilizes
@@ -647,12 +682,21 @@ rb_rational_plus(VALUE self, VALUE other)
 static VALUE
 ary_sum(int argc, VALUE* argv, VALUE ary)
 {
-  VALUE e, v, r;
+  VALUE e, v, r, opts;
   long i, n;
   int block_given;
+  int skip_na;
 
-  if (rb_scan_args(argc, argv, "01", &v) == 0)
+  if (rb_scan_args(argc, argv, "01:", &v, &opts) == 0) {
     v = LONG2FIX(0);
+  }
+  skip_na = opt_skip_na(opts);
+
+#ifndef HAVE_ENUM_SUM
+  if (!skip_na) {
+    return rb_funcall(orig_ary_sum, rb_intern("call"), argc, &v);
+  }
+#endif
 
   block_given = rb_block_given_p();
 
@@ -665,6 +709,9 @@ ary_sum(int argc, VALUE* argv, VALUE ary)
     e = RARRAY_AREF(ary, i);
     if (block_given)
       e = rb_yield(e);
+    if (skip_na && is_na(e))
+      continue;
+
     if (FIXNUM_P(e)) {
       n += FIX2LONG(e); /* should not overflow long type */
       if (!FIXABLE(n)) {
@@ -943,6 +990,7 @@ struct enum_sum_memo {
   double f, c;
   int block_given;
   int float_value;
+  int skip_na;
 };
 
 static void
@@ -956,8 +1004,12 @@ sum_iter(VALUE e, struct enum_sum_memo *memo)
   double f = memo->f;
   double c = memo->c;
 
-  if (memo->block_given)
+  if (memo->block_given) {
     e = rb_yield(e);
+  }
+  if (memo->skip_na && is_na(e)) {
+    return;
+  }
 
   memo->count += 1;
 
@@ -1090,7 +1142,7 @@ int_range_sum_count(VALUE beg, VALUE end, int excl,
 }
 
 static void
-enum_sum_count(VALUE obj, VALUE init, VALUE *sum_ptr, long *count_ptr)
+enum_sum_count(VALUE obj, VALUE init, int skip_na, VALUE *sum_ptr, long *count_ptr)
 {
   struct enum_sum_memo memo;
   VALUE beg, end;
@@ -1101,6 +1153,7 @@ enum_sum_count(VALUE obj, VALUE init, VALUE *sum_ptr, long *count_ptr)
   memo.block_given = rb_block_given_p();
   memo.n = 0;
   memo.r = Qundef;
+  memo.skip_na = skip_na;
 
   if ((memo.float_value = RB_FLOAT_TYPE_P(memo.v))) {
     memo.f = RFLOAT_VALUE(memo.v);
@@ -1138,9 +1191,8 @@ enum_sum_count(VALUE obj, VALUE init, VALUE *sum_ptr, long *count_ptr)
     *count_ptr = memo.count;
 }
 
-#ifndef HAVE_ENUM_SUM
 /* call-seq:
- *    enum.sum
+ *    enum.sum(skip_na: false)
  *
  * Calculate the sum of the values in `enum`.
  * This method utilizes
@@ -1154,16 +1206,27 @@ enum_sum_count(VALUE obj, VALUE init, VALUE *sum_ptr, long *count_ptr)
 static VALUE
 enum_sum(int argc, VALUE* argv, VALUE obj)
 {
-  VALUE sum, init;
+  VALUE sum, init, opts;
+  int skip_na;
 
-  if (rb_scan_args(argc, argv, "01", &init) == 0)
+  if (rb_scan_args(argc, argv, "01:", &init, &opts) == 0) {
     init = LONG2FIX(0);
+  }
+  skip_na = opt_skip_na(opts);
 
-  enum_sum_count(obj, init, &sum, NULL);
+#ifndef HAVE_ENUM_SUM
+  if (skip_na) {
+    enum_sum_count(obj, init, skip_na, &sum, NULL);
+  }
+  else {
+    rb_funcall(orig_enum_sum, rb_intern("call"), argc, &init);
+  }
+#else
+  enum_sum_count(obj, init, skip_na, &sum, NULL);
+#endif
 
   return sum;
 }
-#endif
 
 struct enum_mean_variance_memo {
   int block_given;
@@ -1253,7 +1316,7 @@ enum_mean_variance(VALUE obj, VALUE *mean_ptr, VALUE *variance_ptr, size_t ddof)
     long n;
     VALUE sum;
     VALUE init = DBL2NUM(0.0);
-    enum_sum_count(obj, init, &sum, &n);
+    enum_sum_count(obj, init, 0, &sum, &n); /* TODO: skip_na */
     if (n > 0)
       calculate_and_set_mean(mean_ptr, sum, n);
     return;
@@ -1477,21 +1540,6 @@ ary_stdev(int argc, VALUE* argv, VALUE ary)
   VALUE variance = ary_variance(argc, argv, ary);
   VALUE stdev = sqrt_value(variance);
   return stdev;
-}
-
-static inline int
-is_na(VALUE v)
-{
-  if (NIL_P(v))
-    return 1;
-
-  if (RB_FLOAT_TYPE_P(v) && isnan(RFLOAT_VALUE(v)))
-    return 1;
-
-  if (rb_respond_to(v, id_nan_p) && RTEST(rb_funcall(v, id_nan_p, 0)))
-    return 1;
-
-  return 0;
 }
 
 static int
@@ -2408,10 +2456,12 @@ Init_extension(void)
   rb_ext_ractor_safe(true);
 #endif
 
-#ifndef HAVE_ENUM_SUM
-  rb_define_method(rb_mEnumerable, "sum", enum_sum, -1);
-#endif
+  mEnumerableStatistics = rb_const_get_at(rb_cObject, rb_intern("EnumerableStatistics"));
 
+  orig_enum_sum = rb_funcall(rb_mEnumerable, rb_intern("public_instance_method"), 1, rb_str_new_cstr("sum"));
+  orig_ary_sum = rb_funcall(rb_cArray, rb_intern("public_instance_method"), 1, rb_str_new_cstr("sum"));
+
+  rb_define_method(rb_mEnumerable, "sum", enum_sum, -1);
   rb_define_method(rb_mEnumerable, "mean_variance", enum_mean_variance_m, -1);
   rb_define_method(rb_mEnumerable, "mean", enum_mean, 0);
   rb_define_method(rb_mEnumerable, "variance", enum_variance, -1);
@@ -2419,9 +2469,7 @@ Init_extension(void)
   rb_define_method(rb_mEnumerable, "stdev", enum_stdev, -1);
   rb_define_method(rb_mEnumerable, "value_counts", enum_value_counts, -1);
 
-#ifndef HAVE_ARRAY_SUM
   rb_define_method(rb_cArray, "sum", ary_sum, -1);
-#endif
   rb_define_method(rb_cArray, "mean_variance", ary_mean_variance_m, -1);
   rb_define_method(rb_cArray, "mean", ary_mean, 0);
   rb_define_method(rb_cArray, "variance", ary_variance, -1);
@@ -2436,7 +2484,6 @@ Init_extension(void)
   half_in_rational = nurat_s_new_internal(rb_cRational, INT2FIX(1), INT2FIX(2));
   rb_gc_register_mark_object(half_in_rational);
 
-  mEnumerableStatistics = rb_const_get_at(rb_cObject, rb_intern("EnumerableStatistics"));
   cHistogram = rb_const_get_at(mEnumerableStatistics, rb_intern("Histogram"));
 
   rb_define_method(rb_cArray, "histogram", ary_histogram, -1);
@@ -2462,6 +2509,7 @@ Init_extension(void)
   id_population = rb_intern("population");
   id_closed = rb_intern("closed");
   id_edge = rb_intern("edge");
+  id_skip_na = rb_intern("skip_na");
 
   sym_auto = ID2SYM(rb_intern("auto"));
   sym_left = ID2SYM(rb_intern("left"));
