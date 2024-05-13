@@ -39,7 +39,16 @@ jobs:
       with:
         ruby-version: ${{ matrix.ruby }}
 
-    - run: gem install bundler
+    - name: Detect installable bundler version
+      run: |
+        case "${{ matrix.ruby }}" in
+          2.7|2.6) bundler_version="2.4.22" ;;
+          2.5|2.4) bundler_version="2.3.27" ;;
+          *)       bundler_version="" ;;
+        esac
+        echo "bundler_version=$bundler_version" >> $GITHUB_ENV
+
+    - run: gem install bundler${bundler_version:+ -v $bundler_version}
     - run: bundle install
 
     - run: rake --trace compile
