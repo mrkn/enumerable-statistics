@@ -47,6 +47,7 @@ jobs:
           *)       bundler_version="" ;;
         esac
         echo "bundler_version=$bundler_version" >> $GITHUB_ENV
+      shell: bash
 
     - run: gem install bundler${bundler_version:+ -v $bundler_version}
     - run: bundle install
