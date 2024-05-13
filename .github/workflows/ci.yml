@@ -50,6 +50,8 @@ jobs:
       shell: bash
 
     - run: gem install bundler${bundler_version:+ -v $bundler_version}
+      shell: bash
+
     - run: bundle install
 
     - run: rake --trace compile
