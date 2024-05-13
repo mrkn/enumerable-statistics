@@ -138,7 +138,7 @@ complex_new(VALUE klass, VALUE real, VALUE imag)
 {
   assert(!RB_TYPE_P(real, T_COMPLEX));
 
-  NEWOBJ_OF(obj, struct RComplex, klass, T_COMPLEX | (RGENGC_WB_PROTECTED_COMPLEX ? FL_WB_PROTECTED : 0));
+  VALUE obj = rb_get_alloc_func(klass)(klass);
 
   RCOMPLEX_SET_REAL(obj, real);
   RCOMPLEX_SET_IMAG(obj, imag);
@@ -538,9 +538,11 @@ f_gcd(VALUE x, VALUE y)
 inline static VALUE
 nurat_s_new_internal(VALUE klass, VALUE num, VALUE den)
 {
-  NEWOBJ_OF(obj, struct RRational, klass, T_RATIONAL | (RGENGC_WB_PROTECTED_RATIONAL ? FL_WB_PROTECTED : 0));
+  VALUE obj = rb_get_alloc_func(klass)(klass);
+
   RRATIONAL_SET_NUM(obj, num);
   RRATIONAL_SET_DEN(obj, den);
+
   return (VALUE)obj;
 }
 
