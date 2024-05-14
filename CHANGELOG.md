@@ -1,3 +1,9 @@
+# 2.0.8
+
+- Prohibit the use of both `nbins` and `edges` kwargs simultaneously in the `histogram` method.
+- Support `skip_na` kwarg in `sum` and related methods.
+- Support Ruby 3.4+.
+
 # 2.0.7
 
 - Fix the bug of histogram with bin range that is smaller than value range

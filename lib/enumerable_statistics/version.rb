@@ -1,5 +1,5 @@
 module EnumerableStatistics
-  VERSION = '2.0.7'
+  VERSION = '2.0.8'
 
   module Version
     numbers, TAG = VERSION.split('-', 2)
